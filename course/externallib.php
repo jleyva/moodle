@@ -889,6 +889,275 @@ class core_course_external extends external_api {
      * Returns description of method parameters
      *
      * @return external_function_parameters
+     * @since Moodle 2.3.1
+     */
+    public static function create_backups_parameters() {
+        return new external_function_parameters(
+            array(
+                'backups'=> new external_multiple_structure(
+                    new external_single_structure(
+                        array(
+                            'courseid' => new external_value(PARAM_INT, 'course to duplicate id'),
+                            'destination' => new external_value(PARAM_TEXT, 'backup destination:
+                                                "course" Default, store the backup in the own course backup area,
+                                                "userprivate" Current user private files,
+                                                "userbackup" Current user backup files area,
+                                                "automated"  Automatic backups area,
+                                                "/any/path"  A directory writable in the server',
+                                                VALUE_DEFAULT, 'course'
+                            ),
+                            'options' => new external_multiple_structure(
+                                new external_single_structure(
+                                    array(
+                                            'name' => new external_value(PARAM_ALPHA, 'The backup option name:
+                                                        "activities" (int) Include course activites (default to 1 that is equal to yes),
+                                                        "blocks" (int) Include course blocks (default to 1 that is equal to yes),
+                                                        "filters" (int) Include course filters  (default to 1 that is equal to yes),
+                                                        "users" (int) Include users (default to 0 that is equal to no),
+                                                        "anonymize" (int) Anonymize backup (default to 0 that is equal to no),
+                                                        "role_assignments" (int) Include role assignments  (default to 0 that is equal to no),
+                                                        "user_files" (int) Include user files  (default to 0 that is equal to no),
+                                                        "comments" (int) Include user comments  (default to 0 that is equal to no),
+                                                        "userscompletion" (int) Include user course completion information  (default to 0 that is equal to no),
+                                                        "logs" (int) Include course logs  (default to 0 that is equal to no),
+                                                        "grade_histories" (int) Include grade histories  (default to 0 that is equal to no)'
+                                                        ),
+                                            'value' => new external_value(PARAM_RAW, 'the value for the option 1 (yes) or 0 (no)'
+                                        )
+                                    )
+                                ), VALUE_DEFAULT, array()
+                            )
+                        )
+                    )
+                )
+            )
+        );
+    }
+
+    /**
+     * Create backups of courses
+     *
+     * @param array $options List of backup to create
+     * @return array New course info
+     * @since Moodle 2.3.1
+     */
+    public static function create_backups($backups) {
+        global $CFG, $USER, $DB;
+        require_once($CFG->dirroot . '/backup/util/includes/backup_includes.php');
+
+        $backupsperformed = array();
+
+        // Parameter validation.
+        $params = self::validate_parameters(self::create_backups_parameters(), array('backups' => $backups));
+
+        foreach ($params['backups'] as $backup) {
+
+            // Context validation.
+
+            if (! ($course = $DB->get_record('course', array('id'=>$backup['courseid'])))) {
+                throw new moodle_exception('invalidcourseid', 'error', '', $backup['courseid']);
+            }
+
+            // Course to be backup.
+            $coursecontext = context_course::instance($course->id);
+            self::validate_context($coursecontext);
+
+            $backupsettings = array(
+                'activities' => 1,
+                'blocks' => 1,
+                'filters' => 1,
+                'users' => 0,
+                'anonymize' => 0,
+                'role_assignments' => 0,
+                'user_files' => 0,
+                'comments' => 0,
+                'userscompletion' => 0,
+                'logs' => 0,
+                'grade_histories' => 0
+            );
+
+            // Check for backup and restore options.
+            if (!empty($backup['options'])) {
+                foreach ($backup['options'] as $option) {
+
+                    // Strict check for a correct value (allways 1 or 0, true or false).
+                    $value = clean_param($option['value'], PARAM_INT);
+
+                    if ($value !== 0 and $value !== 1) {
+                        throw new moodle_exception('invalidextparam', 'webservice', '', $option['name']);
+                    }
+
+                    if (!isset($backupsettings[$option['name']])) {
+                        throw new moodle_exception('invalidextparam', 'webservice', '', $option['name']);
+                    }
+
+                    $backupsettings[$option['name']] = $value;
+                }
+            }
+
+            // Capability checking.
+
+            // The backup controller check for this currently, this may be redundant.
+            require_capability('moodle/backup:backupcourse', $coursecontext);
+
+            if (!empty($backupsettings['users'])) {
+                require_capability('moodle/backup:userinfo', $coursecontext);
+            }
+
+            // Backup the course.
+
+            $bc = new backup_controller(backup::TYPE_1COURSE, $course->id, backup::FORMAT_MOODLE,
+            backup::INTERACTIVE_NO, backup::MODE_GENERAL, $USER->id);
+
+            foreach ($backupsettings as $name => $value) {
+                $bc->get_plan()->get_setting($name)->set_value($value);
+            }
+
+            $format = $bc->get_format();
+            $type = $bc->get_type();
+            $id = $bc->get_id();
+            $users = $bc->get_plan()->get_setting('users')->get_value();
+            $anonymised = $bc->get_plan()->get_setting('anonymize')->get_value();
+
+            $bc->get_plan()->get_setting('filename')->set_value(backup_plan_dbops::get_default_backup_filename($format, $type, $id, $users, $anonymised));
+
+            $bc->set_status(backup::STATUS_AWAITING);
+
+            $backupbasepath = $bc->get_plan()->get_basepath();
+
+            $bc->execute_plan();
+            $results = $bc->get_results();
+            $file = $results['backup_destination'];
+
+            $bc->destroy();
+
+            if (empty($CFG->keeptempdirectoriesonbackup)) {
+                fulldelete($backupbasepath);
+            }
+
+            if ($backup['destination'] != 'course' and
+                    $backup['destination'] != 'userprivate' and
+                    $backup['destination'] != 'userbackup' and
+                    $backup['destination'] != 'automated') {
+
+                $path = $backup['destination'];
+
+                if (!is_dir($path)) {
+                    throw new moodle_exception("The destination directory ($path) does not exists or is not a directory.");
+                }
+                if (!is_writable($path)) {
+                    throw new moodle_exception("The destination directory ($path) is not writable.");
+                }
+
+                // Remove spaces and training slashes if present from the end of the path.
+                $path = rtrim($path, '/') . '/' . $file->get_filename();
+
+                if (!$file->copy_content_to($path)) {
+                    throw new moodle_exception('Error saving the backup to the followin directory: ' . $path);
+                }
+
+                // Delete the course backup file created by this WebService. Originally located in the course backups area.
+                $file->delete();
+
+            } else {
+                $newfile = new stdClass();
+                $newfile->contextid = 0;
+                $newfile->component = '';
+                $newfile->filearea = '';
+                $newfile->itemid = 0;
+                $newfile->filepath = '/';
+                $newfile->filename = $file->get_filename();
+
+                switch ($backup['destination']) {
+                    case 'course':
+                        // By default, the backup file is stored in the course by the backup system. But not for all cases.
+                        if ($file->get_filearea() != 'course') {
+                            $newfile->contextid = $coursecontext->id;
+                            $newfile->component = 'backup';
+                            $newfile->filearea = 'course';
+                        }
+                        break;
+
+                    case 'userprivate':
+                        $usercontext = get_context_instance(CONTEXT_USER, $USER->id);
+
+                        $newfile->contextid = $usercontext->id;
+                        $newfile->component = 'user';
+                        $newfile->filearea = 'private';
+                        break;
+
+                    case 'userbackup':
+                        if ($file->get_component() != 'user' and $file->get_filearea() != 'backup') {
+                            $usercontext = get_context_instance(CONTEXT_USER, $USER->id);
+                            $newfile->contextid = $usercontext->id;
+                            $newfile->component = 'user';
+                            $newfile->filearea = 'backup';
+                        }
+                        break;
+
+                    case 'automated':
+                        $newfile->contextid = $coursecontext->id;
+                        $newfile->filearea = 'automated';
+                        $newfile->component = 'backup';
+                        break;
+                }
+
+                // Check if we have to create a new file and delete the generated by default.
+                if ($newfile->filearea) {
+                    $fs = get_file_storage();
+
+                    $newfile = $fs->create_file_from_storedfile($newfile, $file);
+                    if (empty($newfile)) {
+                        throw new moodle_exception('Error saving the backup to the user private files area');
+                    }
+
+                    // Delete the course backup file created by this WebService. Originally located in the course backups area.
+                    $file->delete();
+
+                    // Finally, the download path.
+                    $path = $CFG->wwwroot . '/webservice/pluginfile/' . $newfile->get_contextid() . $newfile->get_component() . $newfile->get_component();
+                } else {
+                    $newfile = $file;
+                }
+
+                // Finally, the download path.
+                $path = $CFG->wwwroot . '/webservice/pluginfile.php/' .
+                        $newfile->get_contextid() . '/' .
+                        $newfile->get_component() . '/' .
+                        $newfile->get_filearea() . '/' .
+                        $newfile->get_filename();
+
+            }
+
+            $backupsperformed[] = array(
+                'courseid' => $course->id,
+                'path' => $path,
+            );
+        }
+        return $backupsperformed;
+    }
+
+    /**
+     * Returns description of method result value
+     *
+     * @return external_description
+     * @since Moodle 2.3.1
+     */
+    public static function create_backups_returns() {
+        return new external_multiple_structure(
+            new external_single_structure(
+                array(
+                    'courseid' => new external_value(PARAM_INT, 'course id'),
+                    'path' => new external_value(PARAM_TEXT, 'backup path in the server or download url'),
+                )
+            )
+        );
+    }
+
+    /**
+     * Returns description of method parameters
+     *
+     * @return external_function_parameters
      * @since Moodle 2.3
      */
     public static function get_categories_parameters() {

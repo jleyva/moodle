@@ -496,6 +496,15 @@ $functions = array(
         'capabilities'=> 'moodle/backup:backupcourse,moodle/restore:restorecourse,moodle/course:create',
     ),
 
+    'core_course_create_backups' => array(
+        'classname'   => 'core_course_external',
+        'methodname'  => 'create_backups',
+        'classpath'   => 'course/externallib.php',
+        'description' => 'Create course backups. This function may take a long time to be executed.',
+        'type'        => 'write',
+        'capabilities'=> 'moodle/backup:backupcourse',
+    ),
+
     // === course category related functions ===
 
     'core_course_get_categories' => array(
