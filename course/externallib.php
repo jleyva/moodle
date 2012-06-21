@@ -1000,8 +1000,21 @@ class core_course_external extends external_api {
             // The backup controller check for this currently, this may be redundant.
             require_capability('moodle/backup:backupcourse', $coursecontext);
 
+            if ($backup['destination'] != 'course' and
+                    $backup['destination'] != 'userprivate' and
+                    $backup['destination'] != 'userbackup') {
+
+                // For backups stored in automated filearea or a system directory, we ask for system capabilities.
+                $systemcontext = context_system::instance();
+                require_capability('moodle/backup:backupcourse', $systemcontext);
+            }
+
             if (!empty($backupsettings['users'])) {
                 require_capability('moodle/backup:userinfo', $coursecontext);
+            }
+
+            if (!empty($backupsettings['anonymize'])) {
+                require_capability('moodle/backup:anonymise', $coursecontext);
             }
 
             // Backup the course.
