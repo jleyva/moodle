@@ -845,7 +845,7 @@ class core_course_external extends external_api {
                     }
                 }
 
-                throw new moodle_exception('backupprecheckerrors', 'webservice', '', $errorinfo);
+                throw new moodle_exception($errorinfo);
             }
         }
 
