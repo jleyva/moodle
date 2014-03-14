@@ -4363,6 +4363,16 @@ function authenticate_user_login($username, $password, $ignorelockout=false, &$f
         }
         $auths = array($auth);
 
+        $authplugin = get_auth_plugin($auth);
+        if (!empty($authplugin->config->fallbacks)) {
+            $fallbacks = explode(",", $authplugin->config->fallbacks);
+            foreach ($fallbacks as $fallback) {
+                if ($fallback != $auth and in_array($fallback, $authsenabled)) {
+                    $auths[] = $fallback;
+                }
+            }
+        }
+
     } else {
         // Check if there's a deleted record (cheaply), this should not happen because we mangle usernames in delete_user().
         if ($DB->get_field('user', 'id', array('username' => $username, 'mnethostid' => $CFG->mnet_localhost_id,  'deleted' => 1))) {
@@ -4437,7 +4447,7 @@ function authenticate_user_login($username, $password, $ignorelockout=false, &$f
             // the current hash algorithm while we have access to the user's password.
             update_internal_user_password($user, $password);
 
-            if ($authplugin->is_synchronised_with_external()) {
+            if ($user->auth == $auth && $authplugin->is_synchronised_with_external()) {
                 // Update user record from external DB.
                 $user = update_user_record($username);
             }
@@ -4446,7 +4456,10 @@ function authenticate_user_login($username, $password, $ignorelockout=false, &$f
             $user = create_user_record($username, $password, $auth);
         }
 
-        $authplugin->sync_roles($user);
+        // Don't allow in fallbacks roles sync.
+        if ($user->auth == $auth) {
+            $authplugin->sync_roles($user);
+        }
 
         foreach ($authsenabled as $hau) {
             $hauth = get_auth_plugin($hau);
