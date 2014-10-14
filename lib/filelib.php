@@ -1953,6 +1953,12 @@ function file_mimetype_in_typegroup($mimetype, $groups) {
  */
 function send_file_not_found() {
     global $CFG, $COURSE;
+
+    // Allow cross-origin downloads only for the Web Services layer.
+    if (WS_SERVER) {
+        header('Access-Control-Allow-Origin: *');
+    }
+
     send_header_404();
     print_error('filenotfound', 'error', $CFG->wwwroot.'/course/view.php?id='.$COURSE->id); //this is not displayed on IIS??
 }
@@ -2196,7 +2202,7 @@ function send_temp_file($path, $filename, $pathisstring=false) {
     }
 
     header('Content-Disposition: attachment; filename="'.$filename.'"');
-    if (is_https()) { // HTTPS sites - watch out for IE! KB812935 and KB316431.
+    if (strpos($CFG->wwwroot, 'https://') === 0) { //https sites - watch out for IE! KB812935 and KB316431
         header('Cache-Control: private, max-age=10, no-transform');
         header('Expires: '. gmdate('D, d M Y H:i:s', 0) .' GMT');
         header('Pragma: ');
@@ -2292,7 +2298,7 @@ function send_file($path, $filename, $lifetime = null , $filter=0, $pathisstring
 
     } else { // Do not cache files in proxies and browsers
         $nobyteserving = true;
-        if (is_https()) { // HTTPS sites - watch out for IE! KB812935 and KB316431.
+        if (strpos($CFG->wwwroot, 'https://') === 0) { //https sites - watch out for IE! KB812935 and KB316431
             header('Cache-Control: private, max-age=10, no-transform');
             header('Expires: '. gmdate('D, d M Y H:i:s', 0) .' GMT');
             header('Pragma: ');
@@ -2465,7 +2471,7 @@ function send_stored_file($stored_file, $lifetime=null, $filter=0, $forcedownloa
         header('Pragma: ');
 
     } else { // Do not cache files in proxies and browsers
-        if (is_https()) { // HTTPS sites - watch out for IE! KB812935 and KB316431.
+        if (strpos($CFG->wwwroot, 'https://') === 0) { //https sites - watch out for IE! KB812935 and KB316431
             header('Cache-Control: private, max-age=10, no-transform');
             header('Expires: '. gmdate('D, d M Y H:i:s', 0) .' GMT');
             header('Pragma: ');
@@ -2474,6 +2480,11 @@ function send_stored_file($stored_file, $lifetime=null, $filter=0, $forcedownloa
             header('Expires: '. gmdate('D, d M Y H:i:s', 0) .' GMT');
             header('Pragma: no-cache');
         }
+    }
+
+    // Allow cross-origin downloads only for the Web Services layer.
+    if (WS_SERVER) {
+        header('Access-Control-Allow-Origin: *');
     }
 
     if (empty($filter)) {
