@@ -1037,6 +1037,45 @@ function external_update_descriptions($component) {
     $services = array();
     include($defpath);
 
+    // Preserve in this variable the original function list.
+    $componentfunctionslist = $functions;
+
+    // Remove and add the functions to all the core services referenced in the declaration.
+    if ( $coreservicesids = $DB->get_fieldset_select('external_services', 'id', 'component = :component',
+                                                        array('component' => 'moodle'))) {
+
+        list($insql, $inparams) = $DB->get_in_or_equal($coreservicesids, SQL_PARAMS_NAMED);
+
+        $additionalservicefunctions = array();
+        foreach ($functions as $functionname => $functiondata) {
+            // First, remove the function from all the core services.
+            $params = array('fname' => $functionname);
+            $params = array_merge($params, $inparams);
+            $select = "functionname = :fname AND externalserviceid $insql";
+
+            $DB->delete_records_select('external_services_functions', $select, $params);
+
+            if (!empty($functiondata['services'])) {
+                foreach ($functiondata['services'] as $service) {
+                    $additionalservicefunctions[$service][] = $functionname;
+                }
+            }
+        }
+
+        // Add the functions to the core services.
+        foreach ($additionalservicefunctions as $serviceshortname => $additionalfunctions) {
+            if ($serviceid = $DB->get_field('external_services', 'id', array('shortname' => $serviceshortname,
+                                                                             'component' => 'moodle'))) {
+                foreach ($additionalfunctions as $functionname) {
+                    $newf = new stdClass();
+                    $newf->externalserviceid = $serviceid;
+                    $newf->functionname      = $functionname;
+                    $DB->insert_record('external_services_functions', $newf);
+                }
+            }
+        }
+    }
+
     // update all function fist
     $dbfunctions = $DB->get_records('external_functions', array('component'=>$component));
     foreach ($dbfunctions as $dbfunction) {
@@ -1147,7 +1186,12 @@ function external_update_descriptions($component) {
         $functions = $DB->get_records('external_services_functions', array('externalserviceid'=>$dbservice->id));
         foreach ($functions as $function) {
             $key = array_search($function->functionname, $service['functions']);
+
             if ($key === false) {
+                // For the core service we only remove core component functions.
+                if ($component === 'moodle' and !isset($componentfunctionslist[$function->functionname])) {
+                    continue;
+                }
                 $DB->delete_records('external_services_functions', array('id'=>$function->id));
             } else {
                 unset($service['functions'][$key]);
