@@ -30,7 +30,8 @@ $functions = array(
                 'methodname'  => 'get_grades',
                 'classpath'   => 'mod/assign/externallib.php',
                 'description' => 'Returns grades from the assignment',
-                'type'        => 'read'
+                'type'        => 'read',
+                'services'      => array(MOODLE_OFFICIAL_MOBILE_SERVICE)
         ),
 
         'mod_assign_get_assignments' => array(
@@ -38,7 +39,8 @@ $functions = array(
                 'methodname'  => 'get_assignments',
                 'classpath'   => 'mod/assign/externallib.php',
                 'description' => 'Returns the courses and assignments for the users capability',
-                'type'        => 'read'
+                'type'        => 'read',
+                'services'      => array(MOODLE_OFFICIAL_MOBILE_SERVICE)
         ),
 
         'mod_assign_get_submissions' => array(
@@ -46,7 +48,8 @@ $functions = array(
                 'methodname' => 'get_submissions',
                 'classpath' => 'mod/assign/externallib.php',
                 'description' => 'Returns the submissions for assignments',
-                'type' => 'read'
+                'type' => 'read',
+                'services'      => array(MOODLE_OFFICIAL_MOBILE_SERVICE)
         ),
 
         'mod_assign_get_user_flags' => array(
@@ -152,7 +155,8 @@ $functions = array(
                 'classpath'     => 'mod/assign/externallib.php',
                 'description'   => 'Trigger the grading_table_viewed event.',
                 'type'          => 'write',
-                'capabilities'  => 'mod/assign:view, mod/assign:viewgrades'
+                'capabilities'  => 'mod/assign:view, mod/assign:viewgrades',
+                'services'      => array(MOODLE_OFFICIAL_MOBILE_SERVICE)
         ),
 
 );
