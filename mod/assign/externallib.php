@@ -349,7 +349,6 @@ class mod_assign_external extends external_api {
                     $context = context_module::instance($module->id);
                     try {
                         self::validate_context($context);
-                        require_capability('mod/assign:view', $context);
                     } catch (Exception $e) {
                         $warnings[] = array(
                             'item' => 'module',
@@ -2089,8 +2088,6 @@ class mod_assign_external extends external_api {
 
         $context = context_module::instance($cm->id);
         self::validate_context($context);
-
-        require_capability('mod/assign:view', $context);
 
         $assign = new assign($context, null, null);
         $assign->require_view_grades();

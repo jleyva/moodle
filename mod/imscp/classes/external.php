@@ -78,8 +78,6 @@ class mod_imscp_external extends external_api {
         $context = context_module::instance($cm->id);
         self::validate_context($context);
 
-        require_capability('mod/imscp:view', $context);
-
         // Call the imscp/lib API.
         imscp_view($imscp, $course, $cm, $context);
 
@@ -159,11 +157,9 @@ class mod_imscp_external extends external_api {
                 $imscpdetails['course']            = $imscp->course;
                 $imscpdetails['name']              = external_format_string($imscp->name, $context->id);
 
-                if (has_capability('mod/imscp:view', $context)) {
-                    // Format intro.
-                    list($imscpdetails['intro'], $imscpdetails['introformat']) =
-                        external_format_text($imscp->intro, $imscp->introformat, $context->id, 'mod_imscp', 'intro', null);
-                }
+                // Format intro.
+                list($imscpdetails['intro'], $imscpdetails['introformat']) =
+                    external_format_text($imscp->intro, $imscp->introformat, $context->id, 'mod_imscp', 'intro', null);
 
                 if (has_capability('moodle/course:manageactivities', $context)) {
                     $imscpdetails['revision']      = $imscp->revision;

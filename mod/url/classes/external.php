@@ -78,8 +78,6 @@ class mod_url_external extends external_api {
         $context = context_module::instance($cm->id);
         self::validate_context($context);
 
-        require_capability('mod/url:view', $context);
-
         // Call the url/lib API.
         url_view($url, $course, $cm, $context);
 

@@ -80,8 +80,6 @@ class mod_lti_external extends external_api {
         $context = context_module::instance($cm->id);
         self::validate_context($context);
 
-        require_capability('mod/lti:view', $context);
-
         $lti->cmid = $cm->id;
         list($endpoint, $parms) = lti_get_launch_data($lti);
 
@@ -181,13 +179,10 @@ class mod_lti_external extends external_api {
                 $module['course'] = $lti->course;
                 $module['name']  = external_format_string($lti->name, $context->id);
 
-                $viewablefields = [];
-                if (has_capability('mod/lti:view', $context)) {
-                    list($module['intro'], $module['introformat']) =
-                        external_format_text($lti->intro, $lti->introformat, $context->id, 'mod_lti', 'intro', $lti->id);
+                list($module['intro'], $module['introformat']) =
+                    external_format_text($lti->intro, $lti->introformat, $context->id, 'mod_lti', 'intro', $lti->id);
 
-                    $viewablefields = array('launchcontainer', 'showtitlelaunch', 'showdescriptionlaunch', 'icon', 'secureicon');
-                }
+                $viewablefields = array('launchcontainer', 'showtitlelaunch', 'showdescriptionlaunch', 'icon', 'secureicon');
 
                 // Check additional permissions for returning optional private settings.
                 if (has_capability('moodle/course:manageactivities', $context)) {
@@ -309,7 +304,6 @@ class mod_lti_external extends external_api {
 
         $context = context_module::instance($cm->id);
         self::validate_context($context);
-        require_capability('mod/lti:view', $context);
 
         // Trigger course_module_viewed event and completion.
         lti_view($lti, $course, $cm, $context);

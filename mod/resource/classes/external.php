@@ -78,8 +78,6 @@ class mod_resource_external extends external_api {
         $context = context_module::instance($cm->id);
         self::validate_context($context);
 
-        require_capability('mod/resource:view', $context);
-
         // Call the resource/lib API.
         resource_view($resource, $course, $cm, $context);
 

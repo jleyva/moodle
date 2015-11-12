@@ -78,8 +78,6 @@ class mod_folder_external extends external_api {
         $context = context_module::instance($cm->id);
         self::validate_context($context);
 
-        require_capability('mod/folder:view', $context);
-
         // Call the page/lib API.
         folder_view($folder, $course, $cm, $context);
 
