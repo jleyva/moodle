@@ -2274,3 +2274,144 @@ function quiz_prepare_and_start_new_attempt(quiz $quizobj, $attemptnumber, $last
 
     return $attempt;
 }
+
+/**
+ * Process responses during an attempt at a quiz.
+ *
+ * @param  quiz_attempt $attemptobj the attempt object
+ * @param  int $timenow time when the processing started
+ * @param  bool $finishattempt whether to finish the attempt or not
+ * @param  bool $timeup true if form was submitted by timer
+ * @param  int $thispage current page number
+ * @param  bool $redirect whether to redirect the user browser or return the attempt state
+ * @param  string $nexturl where to redirect the user once the data has been processed
+ * @return void|string nothing or if $redirect is false the attempt state once the data has been processed
+ * @since  Moodle 3.1
+ * @throws  moodle_exception
+ */
+function quiz_process_attempt(quiz_attempt $attemptobj, $timenow, $finishattempt, $timeup, $thispage,
+                                $redirect = false, $nexturl = '') {
+    global $DB;
+
+    $transaction = $DB->start_delegated_transaction();
+
+    // If there is only a very small amount of time left, there is no point trying
+    // to show the student another page of the quiz. Just finish now.
+    $graceperiodmin = null;
+    $accessmanager = $attemptobj->get_access_manager($timenow);
+    $timeclose = $accessmanager->get_end_time($attemptobj->get_attempt());
+
+    // Don't enforce timeclose for previews
+    if ($attemptobj->is_preview()) {
+        $timeclose = false;
+    }
+    $toolate = false;
+    if ($timeclose !== false && $timenow > $timeclose - QUIZ_MIN_TIME_TO_CONTINUE) {
+        $timeup = true;
+        $graceperiodmin = get_config('quiz', 'graceperiodmin');
+        if ($timenow > $timeclose + $graceperiodmin) {
+            $toolate = true;
+        }
+    }
+
+    // If time is running out, trigger the appropriate action.
+    $becomingoverdue = false;
+    $becomingabandoned = false;
+    if ($timeup) {
+        if ($attemptobj->get_quiz()->overduehandling == 'graceperiod') {
+            if (is_null($graceperiodmin)) {
+                $graceperiodmin = get_config('quiz', 'graceperiodmin');
+            }
+            if ($timenow > $timeclose + $attemptobj->get_quiz()->graceperiod + $graceperiodmin) {
+                // Grace period has run out.
+                $finishattempt = true;
+                $becomingabandoned = true;
+            } else {
+                $becomingoverdue = true;
+            }
+        } else {
+            $finishattempt = true;
+        }
+    }
+
+    // Don't log - we will end with a redirect to a page that is logged.
+
+    if (!$finishattempt) {
+        // Just process the responses for this page and go to the next page.
+        if (!$toolate) {
+            try {
+                $attemptobj->process_submitted_actions($timenow, $becomingoverdue);
+
+            } catch (question_out_of_sequence_exception $e) {
+                print_error('submissionoutofsequencefriendlymessage', 'question',
+                        $attemptobj->attempt_url(null, $thispage));
+
+            } catch (Exception $e) {
+                // This sucks, if we display our own custom error message, there is no way
+                // to display the original stack trace.
+                $debuginfo = '';
+                if (!empty($e->debuginfo)) {
+                    $debuginfo = $e->debuginfo;
+                }
+                print_error('errorprocessingresponses', 'question',
+                        $attemptobj->attempt_url(null, $thispage), $e->getMessage(), $debuginfo);
+            }
+
+            if (!$becomingoverdue) {
+                foreach ($attemptobj->get_slots() as $slot) {
+                    if (optional_param('redoslot' . $slot, false, PARAM_BOOL)) {
+                        $attemptobj->process_redo_question($slot, $timenow);
+                    }
+                }
+            }
+
+        } else {
+            // The student is too late.
+            $attemptobj->process_going_overdue($timenow, true);
+        }
+
+        $transaction->allow_commit();
+
+        if ($redirect) {
+            if ($becomingoverdue) {
+                redirect($attemptobj->summary_url());
+            } else {
+                redirect($nexturl);
+            }
+        }
+
+        return $becomingoverdue ? quiz_attempt::OVERDUE : quiz_attempt::IN_PROGRESS;
+    }
+
+    // Update the quiz attempt record.
+    try {
+        if ($becomingabandoned) {
+            $attemptobj->process_abandon($timenow, true);
+        } else {
+            $attemptobj->process_finish($timenow, !$toolate);
+        }
+
+    } catch (question_out_of_sequence_exception $e) {
+        print_error('submissionoutofsequencefriendlymessage', 'question',
+                $attemptobj->attempt_url(null, $thispage));
+
+    } catch (Exception $e) {
+        // This sucks, if we display our own custom error message, there is no way
+        // to display the original stack trace.
+        $debuginfo = '';
+        if (!empty($e->debuginfo)) {
+            $debuginfo = $e->debuginfo;
+        }
+        print_error('errorprocessingresponses', 'question',
+                $attemptobj->attempt_url(null, $thispage), $e->getMessage(), $debuginfo);
+    }
+
+    // Send the user to the review page.
+    $transaction->allow_commit();
+
+    if ($redirect) {
+        redirect($attemptobj->review_url());
+    }
+
+    return $becomingabandoned ? quiz_attempt::ABANDONED : quiz_attempt::FINISHED;
+}
