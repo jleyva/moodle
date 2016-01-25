@@ -2499,3 +2499,24 @@ function quiz_view_attempt_summary(quiz_attempt $attemptobj) {
     $event->trigger();
 }
 
+/**
+ * Trigger the attempt_reviewed event.
+ *
+ * @param  quiz_attempt $attemptobj attempt object
+ * @since Moodle 3.1
+ */
+function quiz_view_attempt_review(quiz_attempt $attemptobj) {
+
+    $params = array(
+        'objectid' => $attemptobj->get_attemptid(),
+        'relateduserid' => $attemptobj->get_userid(),
+        'courseid' => $attemptobj->get_courseid(),
+        'context' => context_module::instance($attemptobj->get_cmid()),
+        'other' => array(
+            'quizid' => $attemptobj->get_quizid()
+        )
+    );
+    $event = \mod_quiz\event\attempt_reviewed::create($params);
+    $event->add_record_snapshot('quiz_attempts', $attemptobj->get_attempt());
+    $event->trigger();
+}
