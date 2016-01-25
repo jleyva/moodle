@@ -2476,3 +2476,26 @@ function quiz_set_attempt_page(quiz_attempt $attemptobj, $page, $redirect = fals
     quiz_check_page_access($attemptobj, $page, $redirect);
     $DB->set_field('quiz_attempts', 'currentpage', $page, array('id' => $attemptobj->get_attemptid()));
 }
+
+/**
+ * Trigger the attempt_summary_viewed event.
+ *
+ * @param  quiz_attempt $attemptobj attempt object
+ * @since Moodle 3.1
+ */
+function quiz_view_attempt_summary(quiz_attempt $attemptobj) {
+
+    $params = array(
+        'objectid' => $attemptobj->get_attemptid(),
+        'relateduserid' => $attemptobj->get_userid(),
+        'courseid' => $attemptobj->get_courseid(),
+        'context' => context_module::instance($attemptobj->get_cmid()),
+        'other' => array(
+            'quizid' => $attemptobj->get_quizid()
+        )
+    );
+    $event = \mod_quiz\event\attempt_summary_viewed::create($params);
+    $event->add_record_snapshot('quiz_attempts', $attemptobj->get_attempt());
+    $event->trigger();
+}
+
