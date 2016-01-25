@@ -2415,3 +2415,64 @@ function quiz_process_attempt(quiz_attempt $attemptobj, $timenow, $finishattempt
 
     return $becomingabandoned ? quiz_attempt::ABANDONED : quiz_attempt::FINISHED;
 }
+
+/**
+ * Trigger the attempt_viewed event.
+ *
+ * @param  quiz_attempt $attemptobj attempt object
+ * @since Moodle 3.1
+ */
+function quiz_view_attempt(quiz_attempt $attemptobj) {
+    $params = array(
+        'objectid' => $attemptobj->get_attemptid(),
+        'relateduserid' => $attemptobj->get_userid(),
+        'courseid' => $attemptobj->get_courseid(),
+        'context' => context_module::instance($attemptobj->get_cmid()),
+        'other' => array(
+            'quizid' => $attemptobj->get_quizid()
+        )
+    );
+    $event = \mod_quiz\event\attempt_viewed::create($params);
+    $event->add_record_snapshot('quiz_attempts', $attemptobj->get_attempt());
+    $event->trigger();
+}
+
+/**
+ * Check a page access, redirecting the user or throwing an exception if $page is not valid.
+ *
+ * @param  quiz_attempt $attemptobj the attempt object
+ * @param  int $page page number
+ * @param  boolean $redirect whether to redirect the user or not (then throw an exception)
+ * @since Moodle 3.1
+ * @throws  moodle_quiz_exception
+ */
+function quiz_check_page_access(quiz_attempt $attemptobj, $page, $redirect = false) {
+    global $DB;
+
+    if ($attemptobj->get_currentpage() != $page) {
+        if ($attemptobj->get_navigation_method() == QUIZ_NAVMETHOD_SEQ && $attemptobj->get_currentpage() > $page) {
+            // Prevent out of sequence access.
+            if ($redirect) {
+                redirect($attemptobj->start_attempt_url(null, $attemptobj->get_currentpage()));
+            } else {
+                throw new moodle_quiz_exception($attemptobj->get_quizobj(), 'Out of sequence access');
+            }
+        }
+    }
+}
+
+/**
+ * Update attempt page, redirecting the user or throwing an exception if $page is not valid.
+ *
+ * @param  quiz_attempt $attemptobj the attempt object
+ * @param  int $page page number
+ * @param  boolean $redirect whether to redirect the user or not (then throw an exception)
+ * @since Moodle 3.1
+ * @throws  moodle_quiz_exception
+ */
+function quiz_set_attempt_page(quiz_attempt $attemptobj, $page, $redirect = false) {
+    global $DB;
+
+    quiz_check_page_access($attemptobj, $page, $redirect);
+    $DB->set_field('quiz_attempts', 'currentpage', $page, array('id' => $attemptobj->get_attemptid()));
+}
