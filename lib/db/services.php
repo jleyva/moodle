@@ -1265,6 +1265,7 @@ $services = array(
             'core_user_get_users_by_field',
             'core_user_add_user_private_files',
             'mod_assign_view_grading_table',
+            'mod_assign_view_submission_status',
             'mod_scorm_view_scorm',
             'mod_scorm_get_scorm_scoes',
             'mod_scorm_get_scorm_user_data',
