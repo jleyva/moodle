@@ -1,5 +1,12 @@
 This files describes API changes for question type plugins.
 
+=== 3.1 ===
+* Added a new method to the question_bype base class 'is_plain_html'. By default it returns false.
+  This method must return true only if the question does not require javascript, java applets, flash objects, ActiveX, WebGL,
+  Silverlight or other similar web technologies that may require specific plugins installed in the browser.
+  If you question type does not require those technologies, you should override it to return true, doing this, external systems
+  like the Mobile app will be able to render and process the results of the question.
+
 === 2.7 ===
   + We have added a new method to the question_type base class 'break_down_stats_and_response_analysis_by_variant'. By default it
    returns true. If your question type does not have variants of question instances then you can ignore this method as it only

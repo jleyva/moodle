@@ -209,4 +209,8 @@ class qtype_match extends question_type {
         $this->delete_files_in_combined_feedback($questionid, $contextid);
         $this->delete_files_in_hints($questionid, $contextid);
     }
+
+    public function is_plain_html() {
+        return true;
+    }
 }

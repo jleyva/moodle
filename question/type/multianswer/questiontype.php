@@ -242,6 +242,10 @@ class qtype_multianswer extends question_type {
         parent::delete_files($questionid, $contextid);
         $this->delete_files_in_hints($questionid, $contextid);
     }
+
+    public function is_plain_html() {
+        return true;
+    }
 }
 
 

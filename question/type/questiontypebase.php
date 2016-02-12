@@ -1418,6 +1418,16 @@ class question_type {
                 return base64_decode($file->content);
         }
     }
+
+    /**
+     * This method must return true only if the question does not require javascript, java applets, flash objects, ActiveX, WebGL,
+     * Silverlight or other similar web technologies that may require specific plugins installed in the browser.
+     *
+     * @return bool true if the question type requires only HTML to work
+     */
+    public function is_plain_html() {
+        return false;
+    }
 }
 
 

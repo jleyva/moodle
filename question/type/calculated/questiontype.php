@@ -1809,6 +1809,10 @@ class qtype_calculated extends question_type {
         $this->delete_files_in_answers($questionid, $contextid);
         $this->delete_files_in_hints($questionid, $contextid);
     }
+
+    public function is_plain_html() {
+        return true;
+    }
 }
 
 

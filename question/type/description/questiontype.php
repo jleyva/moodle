@@ -66,4 +66,8 @@ class qtype_description extends question_type {
     public function get_random_guess_score($questiondata) {
         return null;
     }
+
+    public function is_plain_html() {
+        return true;
+    }
 }

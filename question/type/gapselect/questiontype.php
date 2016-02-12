@@ -118,4 +118,8 @@ class qtype_gapselect extends qtype_gapselect_base {
 
         return $output;
     }
+
+    public function is_plain_html() {
+        return true;
+    }
 }

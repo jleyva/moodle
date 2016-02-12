@@ -64,4 +64,63 @@ class question_type_testcase extends advanced_testcase {
 
         $this->assertSame('0', $actual->name);
     }
+
+    /**
+     * Test is_plain_html
+     */
+    public function test_is_plain_html() {
+        $q = question_bank::get_qtype('calculated');
+        $this->assertTrue($q->is_plain_html());
+
+        $q = question_bank::get_qtype('calculatedmulti');
+        $this->assertTrue($q->is_plain_html());
+
+        $q = question_bank::get_qtype('calculatedsimple');
+        $this->assertTrue($q->is_plain_html());
+
+        $q = question_bank::get_qtype('ddimageortext');
+        $this->assertFalse($q->is_plain_html());
+
+        $q = question_bank::get_qtype('ddmarker');
+        $this->assertFalse($q->is_plain_html());
+
+        $q = question_bank::get_qtype('ddwtos');
+        $this->assertFalse($q->is_plain_html());
+
+        $q = question_bank::get_qtype('description');
+        $this->assertTrue($q->is_plain_html());
+
+        $q = question_bank::get_qtype('essay');
+        $this->assertTrue($q->is_plain_html());
+
+        $q = question_bank::get_qtype('gapselect');
+        $this->assertTrue($q->is_plain_html());
+
+        $q = question_bank::get_qtype('match');
+        $this->assertTrue($q->is_plain_html());
+
+        $q = question_bank::get_qtype('missingtype');
+        $this->assertFalse($q->is_plain_html());
+
+        $q = question_bank::get_qtype('multianswer');
+        $this->assertTrue($q->is_plain_html());
+
+        $q = question_bank::get_qtype('multichoice');
+        $this->assertTrue($q->is_plain_html());
+
+        $q = question_bank::get_qtype('numerical');
+        $this->assertTrue($q->is_plain_html());
+
+        $q = question_bank::get_qtype('random');
+        $this->assertFalse($q->is_plain_html());
+
+        $q = question_bank::get_qtype('randomsamatch');
+        $this->assertFalse($q->is_plain_html());
+
+        $q = question_bank::get_qtype('shortanswer');
+        $this->assertTrue($q->is_plain_html());
+
+        $q = question_bank::get_qtype('truefalse');
+        $this->assertTrue($q->is_plain_html());
+    }
 }

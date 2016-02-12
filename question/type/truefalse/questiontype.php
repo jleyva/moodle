@@ -183,4 +183,8 @@ class qtype_truefalse extends question_type {
             )
         );
     }
+
+    public function is_plain_html() {
+        return true;
+    }
 }

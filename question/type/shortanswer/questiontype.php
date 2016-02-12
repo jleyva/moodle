@@ -119,4 +119,8 @@ class qtype_shortanswer extends question_type {
 
         return array($questiondata->id => $responses);
     }
+
+    public function is_plain_html() {
+        return true;
+    }
 }

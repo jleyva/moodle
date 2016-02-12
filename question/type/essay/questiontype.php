@@ -167,4 +167,8 @@ class qtype_essay extends question_type {
         $fs = get_file_storage();
         $fs->delete_area_files($contextid, 'qtype_essay', 'graderinfo', $questionid);
     }
+
+    public function is_plain_html() {
+        return true;
+    }
 }

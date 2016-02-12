@@ -201,4 +201,8 @@ class qtype_ddtoimage_base extends question_type {
         $DB->delete_records('qtype_'.$this->name().'_drops', array('questionid' => $questionid));
         return parent::delete_question($questionid, $contextid);
     }
+
+    public function is_plain_html() {
+        return false;
+    }
 }
