@@ -1804,7 +1804,9 @@ class mod_assign_external extends external_api {
                 'assignmentid' => new external_value(PARAM_INT, 'The assignment id to operate on'),
                 'plugindata' => new external_single_structure(
                     $pluginsubmissionparams
-                )
+                ),
+                'acceptsubmissionstatement' => new external_value(PARAM_BOOL, 'Accept the assignment submission statement',
+                                                                    VALUE_DEFAULT, false)
             )
         );
     }
@@ -1814,15 +1816,17 @@ class mod_assign_external extends external_api {
      *
      * @param int $assignmentid The id of the assignment
      * @param array $plugindata - The submitted data for plugins
+     * @param bool $acceptsubmissionstatement Whether to accept the assignment submission statement
      * @return array of warnings to indicate any errors
      * @since Moodle 2.6
      */
-    public static function save_submission($assignmentid, $plugindata) {
+    public static function save_submission($assignmentid, $plugindata, $acceptsubmissionstatement = false) {
         global $CFG, $USER;
 
         $params = self::validate_parameters(self::save_submission_parameters(),
                                             array('assignmentid' => $assignmentid,
-                                                  'plugindata' => $plugindata));
+                                                  'plugindata' => $plugindata,
+                                                  'acceptsubmissionstatement' => $acceptsubmissionstatement));
 
         $cm = get_coursemodule_from_instance('assign', $params['assignmentid'], 0, false, MUST_EXIST);
         $context = context_module::instance($cm->id);
@@ -1832,7 +1836,13 @@ class mod_assign_external extends external_api {
 
         $notices = array();
 
-        if (!$assignment->submissions_open($USER->id)) {
+        $instance = $assignment->get_instance();
+        $adminconfig = $assignment->get_admin_config();
+        $requiresubmissionstatement = $instance->requiresubmissionstatement && !empty($adminconfig->submissionstatement);
+
+        if ($requiresubmissionstatement and !$params['acceptsubmissionstatement']) {
+            $notices[] = get_string('requiresubmissionstatement', 'assign');
+        } else if (!$assignment->submissions_open($USER->id)) {
             $notices[] = get_string('duedatereached', 'assign');
         } else {
             $submissiondata = (object)$params['plugindata'];

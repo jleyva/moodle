@@ -986,6 +986,24 @@ class mod_assign_external_testcase extends externallib_advanced_testcase {
 
         $this->assertCount(1, $result);
         $this->assertEquals(get_string('duedatereached', 'assign'), $result[0]['item']);
+
+        // Require a submission statement.
+        $instance->duedate = 0;
+        $instance->cutoffdate = 0;
+        $instance->requiresubmissionstatement = 1;
+        $DB->update_record('assign', $instance);
+
+        // First, do not accept the statement.
+        $result = mod_assign_external::save_submission($instance->id, $submissionpluginparams);
+        $result = external_api::clean_returnvalue(mod_assign_external::save_submission_returns(), $result);
+        $this->assertCount(1, $result);
+        $this->assertEquals(get_string('requiresubmissionstatement', 'assign'), $result[0]['item']);
+
+        // Now, accept it.
+        $result = mod_assign_external::save_submission($instance->id, $submissionpluginparams, true);
+        $result = external_api::clean_returnvalue(mod_assign_external::save_submission_returns(), $result);
+
+        $this->assertCount(0, $result);
     }
 
     /**
