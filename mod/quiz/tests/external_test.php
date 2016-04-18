@@ -1588,4 +1588,76 @@ class mod_quiz_external_testcase extends externallib_advanced_testcase {
         $this->assertEquals($expected, $result);
 
     }
+
+    /**
+     * Test get_quiz_attempts
+     */
+    public function test_get_quiz_attempts() {
+
+        $studentgroupa = self::getDataGenerator()->create_user();
+        $studentgroupb = self::getDataGenerator()->create_user();
+        $teachergroupa = self::getDataGenerator()->create_user();
+        $teachergroupb = self::getDataGenerator()->create_user();
+
+        // Users enrolments.
+        $this->getDataGenerator()->enrol_user($studentgroupa->id, $this->course->id, $this->studentrole->id, 'manual');
+        $this->getDataGenerator()->enrol_user($teachergroupa->id, $this->course->id, $this->teacherrole->id, 'manual');
+        $this->getDataGenerator()->enrol_user($studentgroupb->id, $this->course->id, $this->studentrole->id, 'manual');
+        $this->getDataGenerator()->enrol_user($teachergroupb->id, $this->course->id, $this->teacherrole->id, 'manual');
+
+        // Groups.
+        $groupa = $this->getDataGenerator()->create_group(array('courseid' => $this->course->id));
+        $this->getDataGenerator()->create_group_member(array('userid' => $this->student->id, 'groupid' => $groupa->id));
+        $this->getDataGenerator()->create_group_member(array('userid' => $studentgroupa->id, 'groupid' => $groupa->id));
+        $this->getDataGenerator()->create_group_member(array('userid' => $teachergroupa->id, 'groupid' => $groupa->id));
+
+        $groupb = $this->getDataGenerator()->create_group(array('courseid' => $this->course->id));
+        $this->getDataGenerator()->create_group_member(array('userid' => $studentgroupb->id, 'groupid' => $groupb->id));
+        $this->getDataGenerator()->create_group_member(array('userid' => $teachergroupb->id, 'groupid' => $groupb->id));
+
+        list($quiz, $context, $quizobj, $studentattempt, $attemptobj) = $this->create_quiz_with_questions(true, true);
+
+        // Create attempt for user in group a and b.
+        $this->setUser($studentgroupa);
+        $attemptstudenta = mod_quiz_external::start_attempt($quiz->id);
+
+        $this->setUser($studentgroupb);
+        $attemptstudentb = mod_quiz_external::start_attempt($quiz->id);
+
+        // Force activity to use groups.
+        set_coursemodule_groupmode($quiz->cmid, SEPARATEGROUPS);
+
+        // As teacher in a group we should see our students attempts in that group.
+        $this->setUser($teachergroupa);
+        $result = mod_quiz_external::get_quiz_attempts($quiz->id, $groupa->id);
+        $result = external_api::clean_returnvalue(mod_quiz_external::get_quiz_attempts_returns(), $result);
+
+        $this->assertCount(2, $result['attempts']);
+        foreach ($result['attempts'] as $attempt) {
+            if ($attempt['sumgrades']) {
+                // This is the attempt finished.
+                $this->assertEquals($studentattempt->id, $attempt['id']);
+                $this->assertEquals(1.0, $attempt['sumgrades']);
+                $this->assertEquals('finished', $attempt['state']);
+            } else {
+                // In progress attempt.
+                $this->assertEquals((array) $attemptstudenta['attempt'], $attempt);
+            }
+        }
+
+        // As teacher in a group we should see our students attempts.
+        $this->setUser($teachergroupb);
+        $result = mod_quiz_external::get_quiz_attempts($quiz->id, $groupb->id);
+        $result = external_api::clean_returnvalue(mod_quiz_external::get_quiz_attempts_returns(), $result);
+
+        $this->assertCount(1, $result['attempts']);
+        $this->assertEquals((array) $attemptstudentb['attempt'], $result['attempts'][0]);
+
+        // Teachers by default can see all groups, retrieve all attempts.
+        $result = mod_quiz_external::get_quiz_attempts($quiz->id, 0);
+        $result = external_api::clean_returnvalue(mod_quiz_external::get_quiz_attempts_returns(), $result);
+
+        // We should see all the attempts.
+        $this->assertCount(3, $result['attempts']);
+    }
 }

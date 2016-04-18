@@ -484,6 +484,50 @@ class quiz {
 
         return $questiontypes;
     }
+
+    /**
+     * Return all the user attempts in the quiz (filtering by group if required)
+     *
+     * @param int $groupid the group id. -1 to determine the group, 0 for all groups
+     * @return array array of quiz attempts objects from the database
+     * @since Moodle 3.1
+     * @throws moodle_exception
+     */
+    public function get_attempts($groupid) {
+        global $DB;
+        $attempts = array();
+        $groupusers = array();
+
+        // Check to see if groups are being used here.
+        if (groups_get_activity_groupmode($this->cm)) {
+            if ($groupid === 0) {
+                // Get all groups allowed.
+                $groups = groups_get_activity_allowed_groups($this->cm);
+                $groupid = array_keys($groups);
+            } else {
+                if ($groupid === -1) {
+                    // Determine current group.
+                    $groupid = groups_get_activity_group($this->cm);
+                }
+                // Determine is the group is visible to user (we need this even for groups returned by groups_get_activity_group).
+                if (!groups_group_visible($groupid, $this->course, $this->cm)) {
+                    throw new moodle_exception('notingroup');
+                }
+            }
+            $groupusers = get_users_by_capability($this->context, array('mod/quiz:reviewmyattempts', 'mod/quiz:attempt'),
+                                                    '', '', '', '', $groupid);
+            $groupusers = array_keys($groupusers);
+        }
+
+        $sql = 'quiz = :quiz';
+        $params = array('quiz' => $this->quiz->id);
+        if (!empty($groupusers)) {
+            list($usql, $extraparams) = $DB->get_in_or_equal($groupusers, SQL_PARAMS_NAMED);
+            $sql .= " AND userid $usql";
+            $params = array_merge($params, $extraparams);
+        }
+        return $DB->get_records_select('quiz_attempts', $sql, $params);
+    }
 }
 
 

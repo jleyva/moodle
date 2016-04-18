@@ -1870,4 +1870,65 @@ class mod_quiz_external extends external_api {
         );
     }
 
+    /**
+     * Describes the parameters for get_quiz_attempts.
+     *
+     * @return external_external_function_parameters
+     * @since Moodle 3.1
+     */
+    public static function get_quiz_attempts_parameters() {
+        return new external_function_parameters (
+            array(
+                'quizid' => new external_value(PARAM_INT, 'quiz instance id'),
+                'groupid' => new external_value(PARAM_INT, 'group 0 for all groups, -1 to determine current', VALUE_DEFAULT, -1),
+            )
+        );
+    }
+
+    /**
+     * Return a list of attempts for the given quiz and optionally group.
+     *
+     * @param int $quizid quiz instance id
+     * @param int $groupid user id
+     * @return array of warnings and the list of attempts
+     * @since Moodle 3.1
+     * @throws invalid_parameter_exception
+     */
+    public static function get_quiz_attempts($quizid, $groupid = -1) {
+        global $USER;
+
+        $warnings = array();
+        $params = array(
+            'quizid' => $quizid,
+            'groupid' => $groupid,
+        );
+        $params = self::validate_parameters(self::get_quiz_attempts_parameters(), $params);
+
+        list($quiz, $course, $cm, $context) = self::validate_quiz($params['quizid']);
+        require_capability('mod/quiz:viewreports', $context);
+
+        $quizobj = quiz::create($cm->instance, $USER->id);
+        $attempts = $quizobj->get_attempts($params['groupid']);
+
+        $result = array();
+        $result['attempts'] = $attempts;
+        $result['warnings'] = $warnings;
+        return $result;
+    }
+
+    /**
+     * Describes the get_quiz_attempts return value.
+     *
+     * @return external_single_structure
+     * @since Moodle 3.1
+     */
+    public static function get_quiz_attempts_returns() {
+        return new external_single_structure(
+            array(
+                'attempts' => new external_multiple_structure(self::attempt_structure()),
+                'warnings' => new external_warnings(),
+            )
+        );
+    }
+
 }
