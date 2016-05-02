@@ -915,6 +915,7 @@ $functions = array(
         'type'         => 'read',
         'capabilities' => 'moodle/competency:competencyview',
         'ajax'         => true,
+        'services'     => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
     ),
     'core_competency_delete_competency' => array(
         'classname'    => 'core_competency\external',
@@ -1014,6 +1015,7 @@ $functions = array(
         'type'         => 'read',
         'capabilities' => 'moodle/competency:coursecompetencyview',
         'ajax'         => true,
+        'services'     => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
     ),
     'core_competency_count_competencies_in_course' => array(
         'classname'    => 'core_competency\external',
@@ -1347,6 +1349,7 @@ $functions = array(
         'type'         => 'read',
         'capabilities' => 'moodle/competency:competencymanage',
         'ajax'         => true,
+        'services'     => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
     ),
     'core_competency_add_related_competency' => array(
         'classname'    => 'core_competency\external',
@@ -1446,6 +1449,7 @@ $functions = array(
         'type'         => 'read',
         'capabilities' => 'moodle/competency:usercompetencyview',
         'ajax'         => true,
+        'services'     => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
     ),
     'core_competency_user_competency_viewed_in_plan' => array(
         'classname'    => 'core_competency\external',
@@ -1455,6 +1459,7 @@ $functions = array(
         'type'         => 'read',
         'capabilities' => 'moodle/competency:usercompetencyview',
         'ajax'         => true,
+        'services'     => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
     ),
     'core_competency_user_competency_viewed_in_course' => array(
         'classname'    => 'core_competency\external',
@@ -1464,6 +1469,7 @@ $functions = array(
         'type'         => 'read',
         'capabilities' => 'moodle/competency:usercompetencyview',
         'ajax'         => true,
+        'services'     => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
     ),
     'core_competency_user_competency_plan_viewed' => array(
         'classname'    => 'core_competency\external',
@@ -1473,6 +1479,7 @@ $functions = array(
         'type'         => 'read',
         'capabilities' => 'moodle/competency:usercompetencyview',
         'ajax'         => true,
+        'services'     => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
     ),
     'core_competency_grade_competency' => array(
         'classname'    => 'core_competency\external',
@@ -1500,6 +1507,7 @@ $functions = array(
         'type'         => 'write',
         'capabilities' => 'moodle/competency:competencygrade',
         'ajax'         => true,
+        'services'     => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
     ),
     'core_competency_unlink_plan_from_template' => array(
         'classname'    => 'core_competency\external',
@@ -1545,6 +1553,7 @@ $functions = array(
         'type'          => 'write',
         'capabilities'  => 'moodle/competency:evidencedelete',
         'ajax'          => true,
+        'services'      => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
     ),
 
     'core_webservice_get_site_info' => array(
