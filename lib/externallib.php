@@ -858,6 +858,146 @@ function external_format_text($text, $textformat, $contextid, $component, $filea
     return array($text, $textformat);
 }
 
+
+/**
+ * Saves files from a draft file area to a real one (adding and updating files in the real file area).
+ * This function should be used for moving files (only files, not directories) uploaded via webservice/upload.php.
+ * This function is based on file_save_draft_area_files but with some differences:
+ * - Directories are not checked (it can't be created via webservice/upload.php).
+ * - File sources/references are not checked (webservice/upload.php doesn't support references).
+ *
+ * @param int $draftitemid the id of the draft area to use.
+ * @param int $contextid This parameter and the next two identify the file area to save to.
+ * @param string $component component name.
+ * @param string $filearea indentifies the file area.
+ * @param int $itemid file area item id.
+ * @param array $options area options (maxfiles=-1, maxbytes=0, areamaxbytes=FILE_AREA_MAX_BYTES_UNLIMITED)
+ * @return array list of warnings, compatible with external_warnings.
+ */
+function external_add_draft_area_files($draftitemid, $contextid, $component, $filearea, $itemid, array $options=null) {
+    global $CFG, $USER;
+    require_once($CFG->libdir . '/filelib.php');
+
+    $warnings = array();
+    $usercontext = context_user::instance($USER->id);
+    $fs = get_file_storage();
+
+    $options = (array)$options;
+    if (!isset($options['maxfiles'])) {
+        $options['maxfiles'] = -1; // Unlimited.
+    }
+    if (!isset($options['maxbytes']) || $options['maxbytes'] == USER_CAN_IGNORE_FILE_SIZE_LIMITS) {
+        $options['maxbytes'] = 0; // Unlimited.
+    }
+    if (!isset($options['areamaxbytes'])) {
+        $options['areamaxbytes'] = FILE_AREA_MAX_BYTES_UNLIMITED; // Unlimited.
+    }
+
+    // Check if the draft area has exceeded the authorised limit.
+    if (file_is_draft_area_limit_reached($draftitemid, $options['areamaxbytes'])) {
+        $warnings[] = array(
+            'item' => $component . ' ' . $filearea,
+            'itemid' => $itemid,
+            'warningcode' => 'maxareabytes',
+            'message' => get_string('maxareabytes', 'error'),
+        );
+        return $warnings;
+    }
+
+    $draftfiles = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'id');
+    $oldfiles   = $fs->get_area_files($contextid, $component, $filearea, $itemid, 'id');
+
+    // One file in filearea means it is empty (it has only top-level directory '.').
+    if (count($draftfiles) > 1 || count($oldfiles) > 1) {
+
+        $newhashes = array();
+        $filecount = 0;
+        foreach ($draftfiles as $file) {
+
+            if ($file->is_directory()) {
+                continue;
+            }
+            if ($options['maxbytes'] and $options['maxbytes'] < $file->get_filesize()) {
+                // Oversized file - should not get here at all.
+                $warnings[] = array(
+                    'item' => $file->get_filename(),
+                    'itemid' => 0,
+                    'warningcode' => 'fileoversized',
+                    'message' => get_string('maxbytesfile', 'error', (object) array('file' => $file->get_filename(),
+                        'size' => $options['maxbytes'])),
+                );
+                continue;
+            }
+            if ($options['maxfiles'] != -1 and $options['maxfiles'] <= $filecount) {
+                // More files - should not get here at all.
+                $warnings[] = array(
+                    'item' => $file->get_filename(),
+                    'itemid' => 0,
+                    'warningcode' => 'maxfiles',
+                    'message' => get_string('err_maxfiles', 'form', $options['maxfiles']),
+                );
+                continue;
+            }
+            $filecount++;
+
+            $newhash = $fs->get_pathname_hash($contextid, $component, $filearea, $itemid, $file->get_filepath(),
+                                                $file->get_filename());
+            $newhashes[$newhash] = $file;
+        }
+
+        // Loop through oldfiles and decide which we need to update.
+        // After this cycle the array $newhashes will only contain the files that need to be added.
+        foreach ($oldfiles as $oldfile) {
+            $oldhash = $oldfile->get_pathnamehash();
+            if (!isset($newhashes[$oldhash])) {
+                continue;
+            }
+
+            $newfile = $newhashes[$oldhash];
+
+            // Status changed, we delete old file, and create a new one.
+            if ($oldfile->get_status() != $newfile->get_status()) {
+                // File was changed, use updated with new timemodified data.
+                $oldfile->delete();
+                // This file will be added later,
+                continue;
+            }
+
+            // Updated author.
+            if ($oldfile->get_author() != $newfile->get_author()) {
+                $oldfile->set_author($newfile->get_author());
+            }
+            // Updated license.
+            if ($oldfile->get_license() != $newfile->get_license()) {
+                $oldfile->set_license($newfile->get_license());
+            }
+
+            // Update file timemodified.
+            if ($oldfile->get_timemodified() != $newfile->get_timemodified()) {
+                $oldfile->set_timemodified($newfile->get_timemodified());
+            }
+
+            // Replaced file content.
+            if ( $oldfile->get_contenthash() != $newfile->get_contenthash() ||
+                    $oldfile->get_filesize() != $newfile->get_filesize() ||
+                    $oldfile->get_userid() != $newfile->get_userid()) {
+                $oldfile->replace_file_with($newfile);
+            }
+
+            // Remove from the array of files that need to be added.
+            unset($newhashes[$oldhash]);
+        }
+
+        // Add new files.
+        foreach ($newhashes as $file) {
+            $filerecord = array('contextid' => $contextid, 'component' => $component, 'filearea' => $filearea, 'itemid' => $itemid,
+                                'timemodified' => time());
+            $fs->create_file_from_storedfile($filerecord, $file);
+        }
+        return $warnings;
+    }
+}
+
 /**
  * Singleton to handle the external settings.
  *

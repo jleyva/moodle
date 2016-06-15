@@ -358,6 +358,218 @@ class core_externallib_testcase extends advanced_testcase {
             $this->assertInstanceOf('external_description', $desc->returns_desc);
         }
     }
+
+    /**
+     * Test external_add_draft_area_files
+     */
+    public function test_external_add_draft_area_files() {
+        global $USER, $CFG;
+
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        $fs = get_file_storage();
+
+        // Create a draft file.
+        $draftidfile = file_get_unused_draft_itemid();
+        $usercontext = context_user::instance($USER->id);
+        $filename = 'data.txt';
+        $filecontent = 'some random text here';
+
+        $filerecord = array(
+            'contextid' => $usercontext->id,
+            'component' => 'user',
+            'filearea'  => 'draft',
+            'itemid'    => $draftidfile,
+            'filepath'  => '/',
+            'filename'  => $filename,
+        );
+        $fs->create_file_from_string($filerecord, $filecontent);
+
+        $maxbytes = $CFG->userquota;
+        $maxareabytes = $CFG->userquota;
+        $options = array('subdirs' => 1,
+                         'maxbytes' => $maxbytes,
+                         'maxfiles' => -1,
+                         'areamaxbytes' => $maxareabytes);
+
+        // Add new file.
+        $warnings = external_add_draft_area_files($draftidfile, $usercontext->id, 'user', 'private', 0, $options);
+        $this->assertCount(0, $warnings);
+
+        $files = $fs->get_area_files($usercontext->id, 'user', 'private', 0);
+        // Directory and file.
+        $this->assertCount(2, $files);
+        $found = false;
+        foreach ($files as $file) {
+            if (!$file->is_directory()) {
+                $found = true;
+                $this->assertEquals($filename, $file->get_filename());
+                $this->assertEquals($filecontent, $file->get_content());
+            }
+        }
+        $this->assertTrue($found);
+
+        // Add two more files.
+        $draftidfile = file_get_unused_draft_itemid();
+
+        $filerecord = array(
+            'contextid' => $usercontext->id,
+            'component' => 'user',
+            'filearea'  => 'draft',
+            'itemid'    => $draftidfile,
+            'filepath'  => '/',
+            'filename'  => 'second.txt',
+        );
+        $fs->create_file_from_string($filerecord, $filecontent);
+
+        $filerecord = array(
+            'contextid' => $usercontext->id,
+            'component' => 'user',
+            'filearea'  => 'draft',
+            'itemid'    => $draftidfile,
+            'filepath'  => '/',
+            'filename'  => 'third.txt',
+        );
+        $fs->create_file_from_string($filerecord, $filecontent);
+        $warnings = external_add_draft_area_files($draftidfile, $usercontext->id, 'user', 'private', 0, $options);
+        $this->assertCount(0, $warnings);
+
+        $files = $fs->get_area_files($usercontext->id, 'user', 'private', 0);
+        $this->assertCount(4, $files);
+
+        // Update contents of one file.
+        $draftidfile = file_get_unused_draft_itemid();
+        $filerecord = array(
+            'contextid' => $usercontext->id,
+            'component' => 'user',
+            'filearea'  => 'draft',
+            'itemid'    => $draftidfile,
+            'filepath'  => '/',
+            'filename'  => 'second.txt',
+        );
+        $fs->create_file_from_string($filerecord, 'new content');
+        $warnings = external_add_draft_area_files($draftidfile, $usercontext->id, 'user', 'private', 0, $options);
+        $this->assertCount(0, $warnings);
+
+        $files = $fs->get_area_files($usercontext->id, 'user', 'private', 0);
+        $this->assertCount(4, $files);
+        $found = false;
+        foreach ($files as $file) {
+            if ($file->get_filename() == 'second.txt') {
+                $found = true;
+                $this->assertEquals('new content', $file->get_content());
+            }
+        }
+        $this->assertTrue($found);
+
+        // Update author.
+        // Set different author in the current file.
+        foreach ($files as $file) {
+            if ($file->get_filename() == 'second.txt') {
+                $file->set_author('Nobody');
+            }
+        }
+        $filerecord['itemid'] = file_get_unused_draft_itemid();
+        $filerecord['author'] = fullname($USER);
+        $fs->create_file_from_string($filerecord, 'new content');
+        $warnings = external_add_draft_area_files($filerecord['itemid'], $usercontext->id, 'user', 'private', 0, $options);
+        $this->assertCount(0, $warnings);
+
+        $files = $fs->get_area_files($usercontext->id, 'user', 'private', 0);
+        $this->assertCount(4, $files);
+        $found = false;
+        foreach ($files as $file) {
+            if ($file->get_filename() == 'second.txt') {
+                $found = true;
+                $this->assertEquals(fullname($USER), $file->get_author());
+            }
+        }
+        $this->assertTrue($found);
+
+    }
+
+    /**
+     * Helper create a draft file.
+     */
+    public function create_draft_file() {
+        global $USER;
+
+        $this->setAdminUser();
+        $fs = get_file_storage();
+
+        // Create a draft file.
+        $draftidfile = file_get_unused_draft_itemid();
+        $usercontext = context_user::instance($USER->id);
+
+        $filerecord = array(
+            'contextid' => $usercontext->id,
+            'component' => 'user',
+            'filearea'  => 'draft',
+            'itemid'    => $draftidfile,
+            'filepath'  => '/',
+            'filename'  => 'file.txt',
+        );
+        $fs->create_file_from_string($filerecord, 'some content here');
+        return $filerecord;
+    }
+
+    /**
+     * Test max area bytes for external_add_draft_area_files
+     */
+    public function test_external_add_draft_area_files_max_area_bytes() {
+
+        $this->resetAfterTest(true);
+
+        $filerecord = self::create_draft_file();
+        $options = array('subdirs' => 1,
+                         'maxbytes' => 5,
+                         'maxfiles' => -1,
+                         'areamaxbytes' => 10);
+
+        // Add new file.
+        $warnings = external_add_draft_area_files($filerecord['itemid'], $filerecord['contextid'], 'user', 'private', 0, $options);
+        $this->assertCount(1, $warnings);
+        $this->assertEquals('maxareabytes', $warnings[0]['warningcode']);
+    }
+
+    /**
+     * Test max file bytes for external_add_draft_area_files
+     */
+    public function test_external_add_draft_area_files_max_file_bytes() {
+
+        $this->resetAfterTest(true);
+
+        $filerecord = self::create_draft_file();
+        $options = array('subdirs' => 1,
+                         'maxbytes' => 5,
+                         'maxfiles' => -1,
+                         'areamaxbytes' => 100);
+
+        // Add new file.
+        $warnings = external_add_draft_area_files($filerecord['itemid'], $filerecord['contextid'], 'user', 'private', 0, $options);
+        $this->assertCount(1, $warnings);
+        $this->assertEquals('fileoversized', $warnings[0]['warningcode']);
+    }
+
+    /**
+     * Test max file number for external_add_draft_area_files
+     */
+    public function test_external_add_draft_area_files_max_files() {
+
+        $this->resetAfterTest(true);
+
+        $filerecord = self::create_draft_file();
+        $options = array('subdirs' => 1,
+                         'maxbytes' => 1000,
+                         'maxfiles' => 0,
+                         'areamaxbytes' => 1000);
+
+        // Add new file.
+        $warnings = external_add_draft_area_files($filerecord['itemid'], $filerecord['contextid'], 'user', 'private', 0, $options);
+        $this->assertCount(1, $warnings);
+        $this->assertEquals('maxfiles', $warnings[0]['warningcode']);
+    }
+
 }
 
 /*
