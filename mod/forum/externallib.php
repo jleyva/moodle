@@ -524,8 +524,8 @@ class mod_forum_external extends external_api {
                             $discussion->attachments[] = array(
                                 'filename' => $filename,
                                 'mimetype' => $file->get_mimetype(),
-                                'fileurl'  => file_encode_url($CFG->wwwroot.'/webservice/pluginfile.php',
-                                                '/'.$modcontext->id.'/mod_forum/attachment/'.$discussion->id.'/'.$filename)
+                                'fileurl'  => moodle_url::make_webservice_pluginfile_url($modcontext->id, 'mod_forum', 'attachment',
+                                                $discussion->id, '/', $filename)->out(false)
                             );
                         }
                     }
