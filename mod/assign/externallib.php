@@ -682,8 +682,10 @@ class mod_assign_external extends external_api {
                             );
                             foreach ($files as $file) {
                                 $filepath = $file->get_filepath().$file->get_filename();
-                                $fileurl = file_encode_url($CFG->wwwroot . '/webservice/pluginfile.php', '/' . $assign->get_context()->id .
-                                    '/' . $component. '/'. $filearea . '/' . $submissionrecord->id . $filepath);
+                                $fileurl = moodle_url::make_webservice_pluginfile_url($assign->get_context()->id, $component,
+                                            $filearea, $submissionrecord->id, $file->get_filepath(),
+                                            $file->get_filename())->out(false);
+
                                 $fileinfo = array(
                                     'filepath' => $filepath,
                                     'fileurl' => $fileurl
