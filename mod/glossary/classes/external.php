@@ -92,6 +92,7 @@ class mod_glossary_external extends external_api {
             'definitiontrust' => new external_value(PARAM_BOOL, 'The definition trust flag'),
             'attachment' => new external_value(PARAM_BOOL, 'Whether or not the entry has attachments'),
             'attachments' => new external_files('attachments', VALUE_OPTIONAL),
+            'entryfiles' => new external_files('entry inline files', VALUE_OPTIONAL),
             'timecreated' => new external_value(PARAM_INT, 'Time created'),
             'timemodified' => new external_value(PARAM_INT, 'Time modified'),
             'teacherentry' => new external_value(PARAM_BOOL, 'The entry was created by a teacher, or equivalent.'),
@@ -143,6 +144,10 @@ class mod_glossary_external extends external_api {
         $entry->attachments = array();
         if ($entry->attachment) {
             $entry->attachments = external_util::get_area_files($context->id, 'mod_glossary', 'attachment', $entry->id);
+        }
+        $entryfiles = external_util::get_area_files($context->id, 'mod_glossary', 'entry', $entry->id);
+        if (!empty($entryfiles)) {
+            $entry->entryfiles = $entryfiles;
         }
     }
 

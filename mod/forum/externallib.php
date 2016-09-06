@@ -285,6 +285,10 @@ class mod_forum_external extends external_api {
             if (!empty($post->attachment)) {
                 $post->attachments = external_util::get_area_files($modcontext->id, 'mod_forum', 'attachment', $post->id);
             }
+            $postfiles = external_util::get_area_files($modcontext->id, 'mod_forum', 'post', $post->id);
+            if (!empty($postfiles)) {
+                $post->postfiles = $postfiles;
+            }
 
             $posts[] = $post;
         }
@@ -320,6 +324,7 @@ class mod_forum_external extends external_api {
                                 'messagetrust' => new external_value(PARAM_INT, 'Can we trust?'),
                                 'attachment' => new external_value(PARAM_RAW, 'Has attachments?'),
                                 'attachments' => new external_files('attachments', VALUE_OPTIONAL),
+                                'postfiles' => new external_files('post inline files', VALUE_OPTIONAL),
                                 'totalscore' => new external_value(PARAM_INT, 'The post message total score'),
                                 'mailnow' => new external_value(PARAM_INT, 'Mail now?'),
                                 'children' => new external_multiple_structure(new external_value(PARAM_INT, 'children post id')),
@@ -498,6 +503,10 @@ class mod_forum_external extends external_api {
                     $discussion->attachments = external_util::get_area_files($modcontext->id, 'mod_forum', 'attachment',
                                                                                 $discussion->id);
                 }
+                $postfiles = external_util::get_area_files($modcontext->id, 'mod_forum', 'post', $discussion->id);
+                if (!empty($postfiles)) {
+                    $discussion->postfiles = $postfiles;
+                }
 
                 $discussions[] = $discussion;
             }
@@ -541,6 +550,7 @@ class mod_forum_external extends external_api {
                                 'messagetrust' => new external_value(PARAM_INT, 'Can we trust?'),
                                 'attachment' => new external_value(PARAM_RAW, 'Has attachments?'),
                                 'attachments' => new external_files('attachments', VALUE_OPTIONAL),
+                                'postfiles' => new external_files('post inline files', VALUE_OPTIONAL),
                                 'totalscore' => new external_value(PARAM_INT, 'The post message total score'),
                                 'mailnow' => new external_value(PARAM_INT, 'Mail now?'),
                                 'userfullname' => new external_value(PARAM_TEXT, 'Post author full name'),
