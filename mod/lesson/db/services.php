@@ -35,4 +35,12 @@ $functions = array(
         'capabilities'  => 'mod/lesson:view',
         'services'    => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
     ),
+    'mod_lesson_get_lesson_access_information' => array(
+        'classname'     => 'mod_lesson_external',
+        'methodname'    => 'get_lesson_access_information',
+        'description'   => 'Return access information for a given lesson.',
+        'type'          => 'read',
+        'capabilities'  => 'mod/lesson:view',
+        'services'    => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
+    ),
 );
