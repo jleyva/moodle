@@ -51,4 +51,12 @@ $functions = array(
         'capabilities'  => 'mod/lesson:view',
         'services'      => array(MOODLE_OFFICIAL_MOBILE_SERVICE)
     ),
+    'mod_lesson_get_page_attempts' => array(
+        'classname'     => 'mod_lesson_external',
+        'methodname'    => 'get_page_attempts',
+        'description'   => 'Return the list of page question attempts in a given lesson.',
+        'type'          => 'read',
+        'capabilities'  => 'mod/lesson:view',
+        'services'      => array(MOODLE_OFFICIAL_MOBILE_SERVICE)
+    ),
 );
