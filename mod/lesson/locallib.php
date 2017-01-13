@@ -1018,6 +1018,13 @@ class lesson extends lesson_base {
     protected $cm = null;
 
     /**
+     * Course object gets set and retrieved by
+     * {@see get_courserecord()} by directly calling <code>$lesson->courserecord;</code>
+     * @var stdClass
+     */
+    protected $courserecord = null;
+
+    /**
      * Context object gets set and retrieved by
      * {@see get_context()} by directly calling <code>$lesson->context;</code>
      * @var stdClass
@@ -1031,9 +1038,10 @@ class lesson extends lesson_base {
      * @param stdClass $cm course module object
      * @since Moodle 3.3
      */
-    public function __construct($properties, $cm = null) {
+    public function __construct($properties, $cm = null, $course = null) {
         parent::__construct($properties);
         $this->cm = $cm;
+        $this->courserecord = $course;
     }
 
     /**
@@ -2130,6 +2138,31 @@ class lesson extends lesson_base {
     }
 
     /**
+     * Set the lesson course object.
+     *
+     * @param stdClass course objct
+     * @since  Moodle 3.3
+     */
+    private function set_courserecord($course) {
+        $this->course = $course;
+    }
+
+    /**
+     * Return the lesson course object.
+     *
+     * @return stdClass course
+     * @since  Moodle 3.3
+     */
+    public function get_courserecord() {
+        global $DB;
+
+        if ($this->courserecord == null) {
+            $this->courserecord = $DB->get_record('course', array('id' => $this->properties->course));
+        }
+        return $this->courserecord;
+    }
+
+    /**
      * Check if the user can manage the lesson activity.
      *
      * @return bool true if the user can manage the lesson
@@ -2349,12 +2382,36 @@ class lesson extends lesson_base {
      *
      * @param int $retriescount the number of retries for the lesson (the last retry number).
      * @return true if the user left the timed session
+     * @since  Moodle 3.3
      */
     public function left_during_timed_session($retriescount) {
         global $DB, $USER;
 
         $conditions = array('lessonid' => $this->properties->id, 'userid' => $USER->id, 'retry' => $retriescount);
         return $DB->count_records('lesson_attempts', $conditions) > 0 || $DB->count_records('lesson_branch', $conditions) > 0;
+    }
+
+    /**
+     * Trigger module viewed event and set the module viewed for completion.
+     *
+     * @since  Moodle 3.3
+     */
+    public function set_module_viewed() {
+        global $CFG;
+        require_once($CFG->libdir . '/completionlib.php');
+
+        // Trigger module viewed event.
+        $event = \mod_lesson\event\course_module_viewed::create(array(
+            'objectid' => $this->properties->id,
+            'context' => $this->get_context()
+        ));
+        $event->add_record_snapshot('course_modules', $this->get_cm());
+        $event->add_record_snapshot('course', $this->get_courserecord());
+        $event->trigger();
+
+        // Mark as viewed.
+        $completion = new completion_info($this->get_courserecord());
+        $completion->set_module_viewed($this->get_cm());
     }
 }
 
