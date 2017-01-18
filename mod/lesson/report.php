@@ -74,7 +74,7 @@ if ($action === 'delete') {
                     $try -= $modifier;
 
                 /// Clean up the timer table by removing using the order - this is silly, it should be linked to specific attempt (skodak)
-                    $timers = $lesson->get_user_timers($userid, 'starttime', 'id', $try, 1)
+                    $timers = $lesson->get_user_timers($userid, 'starttime', 'id', $try, 1);
                     if ($timers) {
                         $timer = reset($timers);
                         $DB->delete_records('lesson_timer', array('id' => $timer->id));
