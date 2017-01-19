@@ -1506,4 +1506,126 @@ class mod_lesson_external extends external_api {
             )
         );
     }
+
+    /**
+     * Describes the parameters for finish_attempt.
+     *
+     * @return external_external_function_parameters
+     * @since Moodle 3.3
+     */
+    public static function finish_attempt_parameters() {
+        return new external_function_parameters (
+            array(
+                'lessonid' => new external_value(PARAM_INT, 'lesson instance id'),
+                'password' => new external_value(PARAM_RAW, 'optional password (the lesson may be protected)', VALUE_DEFAULT, ''),
+                'outoftime' => new external_value(PARAM_BOOL, 'if the user run out of time', VALUE_DEFAULT, false),
+                'review' => new external_value(PARAM_RAW, 'if we want to review just after finishing (1 hour margin)', VALUE_DEFAULT, false),
+            )
+        );
+    }
+
+    /**
+     * Processes page responses
+     *
+     * @param int $lessonid lesson instance id
+     * @param str $password optional password (the lesson may be protected)
+     * @param bool $outoftime optional if the user run out of time
+     * @param bool $review if we want to review just after finishing (1 hour margin)
+     * @return array of warnings and status result
+     * @since Moodle 3.3
+     * @throws moodle_exception
+     */
+    public static function finish_attempt($lessonid, $password = '', $outoftime = false, $review = false) {
+        global $DB, $PAGE;
+
+        $params = array('lessonid' => $lessonid, 'password' => $password, 'outoftime' => $outoftime, 'review' => $review);
+        $params = self::validate_parameters(self::finish_attempt_parameters(), $params);
+
+        $warnings = $messages = $contentfiles = $answerfiles = $responsefiles = array();
+        $pagecontent = $ongoingscore = '';
+        $progress = null;
+
+        list($lesson, $course, $cm, $context) = self::validate_lesson($params['lessonid']);
+
+        // Update timer so the validation can check the time restrictions.
+        $timer = $lesson->update_timer();
+
+        // Return the validation to avoid exception in case out of time.
+        $validation = self::validate_attempt($lesson, $params, true);
+
+        if (isset($validation['eolstudentoutoftime'])) {
+            // Maybe we run out of time just now.
+            $params['outoftime'] = true;
+            unset($validation['eolstudentoutoftime']);
+        }
+        // Check if there are more errors.
+        if (!empty($validation)) {
+            reset($validation);
+            throw new moodle_exception(key($validation), 'lesson', '', current($validation));   // Throw first error.
+        }
+
+        $result = $lesson->process_eol_page($params['outoftime']);
+
+        // Return the data.
+         $validmessages = array(
+            'notenoughtimespent', 'numberofpagesviewed', 'youshouldview', 'numberofcorrectanswers',
+            'displayscorewithessays', 'displayscorewithoutessays', 'yourcurrentgradeisoutof', 'eolstudentoutoftimenoanswers',
+            'welldone', 'displayofgrade', 'reviewlesson', 'modattemptsnoteacher');
+
+        $data = array();
+        foreach ($result as $el => $value) {
+            if ($value !== false) {
+                $message = '';
+                if (in_array($el, $validmessages)) { // Check if the data comes with an informative message.
+                    $a = (is_bool($value)) ? null : $value;
+                    $message = get_string($el, 'lesson', $a);
+                }
+                // Return the data.
+                $data[] = array(
+                    'name' => $el,
+                    'value' => (is_bool($value)) ? 1 : json_encode($value), // The data can be a php object.
+                    'message' => $message
+                );
+            }
+        }
+
+        // Special cases.
+        $progress = null;
+        if ($result->progressbar) {
+            $progress = $lesson->calculate_progress();
+        }
+
+        $result = array(
+            'data'     => $data,
+            'progress'     => $progress,
+            'messages' => self::format_lesson_messages($lesson),
+            'warnings' => $warnings,
+        );
+        return $result;
+    }
+
+    /**
+     * Describes the finish_attempt return value.
+     *
+     * @return external_single_structure
+     * @since Moodle 3.3
+     */
+    public static function finish_attempt_returns() {
+        return new external_single_structure(
+            array(
+                'data' => new external_multiple_structure(
+                    new external_single_structure(
+                        array(
+                            'name' => new external_value(PARAM_ALPHANUMEXT, 'data name'),
+                            'value' => new external_value(PARAM_RAW, 'data value'),
+                            'message' => new external_value(PARAM_RAW, 'data value'),
+                        )
+                    ), 'The EOL page data'
+                ),
+                'progress' => new external_value(PARAM_INT, 'Progress percentage in the lesson'),
+                'messages' => self::external_messages(),
+                'warnings' => new external_warnings(),
+            )
+        );
+    }
 }
