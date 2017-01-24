@@ -708,6 +708,28 @@ class mod_lesson_external extends external_api {
     }
 
     /**
+     * Describes an attempt grade structure.
+     *
+     * @param  int $required if the structure is required or optional
+     * @return external_single_structure the structure
+     * @since  Moodle 3.3
+     */
+    protected static function get_user_attempt_grade_structure($required = VALUE_REQUIRED) {
+        $data = array(
+            'nquestions' => new external_value(PARAM_INT, 'Number of questions answered'),
+            'attempts' => new external_value(PARAM_INT, 'Number of question attempts'),
+            'total' => new external_value(PARAM_FLOAT, 'Max points possible'),
+            'earned' => new external_value(PARAM_FLOAT, 'Points earned by student'),
+            'grade' => new external_value(PARAM_FLOAT, 'Calculated percentage grade'),
+            'nmanual' => new external_value(PARAM_INT, 'Number of manually graded questions'),
+            'manualpoints' => new external_value(PARAM_FLOAT, 'Point value for manually graded questions'),
+        );
+        return new external_single_structure(
+            $data, 'Attempt grade', $required
+        );
+    }
+
+    /**
      * Describes the parameters for get_user_attempt_grade.
      *
      * @return external_external_function_parameters
@@ -757,7 +779,8 @@ class mod_lesson_external extends external_api {
             self::check_can_view_user_data($params['userid'], $course, $cm, $context);
         }
 
-        $result = (array) lesson_grade($lesson, $params['lessonattempt'], $params['userid']);
+        $result = array();
+        $result['grade'] = (array) lesson_grade($lesson, $params['lessonattempt'], $params['userid']);
         $result['warnings'] = $warnings;
         return $result;
     }
@@ -771,13 +794,7 @@ class mod_lesson_external extends external_api {
     public static function get_user_attempt_grade_returns() {
         return new external_single_structure(
             array(
-                'nquestions' => new external_value(PARAM_INT, 'Number of questions answered'),
-                'attempts' => new external_value(PARAM_INT, 'Number of question attempts'),
-                'total' => new external_value(PARAM_FLOAT, 'Max points possible'),
-                'earned' => new external_value(PARAM_FLOAT, 'Points earned by student'),
-                'grade' => new external_value(PARAM_FLOAT, 'Calculated percentage grade'),
-                'nmanual' => new external_value(PARAM_INT, 'Number of manually graded questions'),
-                'manualpoints' => new external_value(PARAM_FLOAT, 'Point value for manually graded questions'),
+                'grade' => self::get_user_attempt_grade_structure(),
                 'warnings' => new external_warnings(),
             )
         );
@@ -1734,6 +1751,107 @@ class mod_lesson_external extends external_api {
                                 )
                             ), 'Students data, including attempts', VALUE_OPTIONAL
                         ),
+                    )
+                ),
+                'warnings' => new external_warnings(),
+            )
+        );
+    }
+
+    /**
+     * Describes the parameters for get_user_attempt.
+     *
+     * @return external_external_function_parameters
+     * @since Moodle 3.3
+     */
+    public static function get_user_attempt_parameters() {
+        return new external_function_parameters (
+            array(
+                'lessonid' => new external_value(PARAM_INT, 'lesson instance id'),
+                'userid' => new external_value(PARAM_INT, 'the user id'),
+                'lessonattempt' => new external_value(PARAM_INT, 'the attempt number'),
+            )
+        );
+    }
+
+    /**
+     * Return information about the given user attempt (including answers).
+     *
+     * @param int $lessonid lesson instance id
+     * @param int $userid the user id
+     * @param int $lessonattempt the attempt number
+     * @return array of warnings and page attempts
+     * @since Moodle 3.3
+     * @throws moodle_exception
+     */
+    public static function get_user_attempt($lessonid, $userid, $lessonattempt) {
+        global $USER;
+
+        $params = array(
+            'lessonid' => $lessonid,
+            'userid' => $userid,
+            'lessonattempt' => $lessonattempt,
+        );
+        $params = self::validate_parameters(self::get_user_attempt_parameters(), $params);
+        $warnings = array();
+
+        list($lesson, $course, $cm, $context) = self::validate_lesson($params['lessonid']);
+
+        // Default value for userid.
+        if (empty($params['userid'])) {
+            $params['userid'] = $USER->id;
+        }
+
+        // Extra checks so only users with permissions can view other users attempts.
+        if ($USER->id != $params['userid']) {
+            self::check_can_view_user_data($params['userid'], $course, $cm, $context);
+        }
+
+        list($answerpages, $userstats) = lesson_get_user_detailed_report_data($lesson, $userid, $params['lessonattempt']);
+
+        $result = array(
+            'answerpages' => $answerpages,
+            'userstats' => $userstats,
+            'warnings' => $warnings,
+        );
+        return $result;
+    }
+
+    /**
+     * Describes the get_user_attempt return value.
+     *
+     * @return external_single_structure
+     * @since Moodle 3.3
+     */
+    public static function get_user_attempt_returns() {
+        return new external_single_structure(
+            array(
+                'answerpages' => new external_multiple_structure(
+                    new external_single_structure(
+                        array(
+                            'title' => new external_value(PARAM_RAW, 'Page title'),
+                            'contents' => new external_value(PARAM_RAW, 'Page contents'),
+                            'qtype' => new external_value(PARAM_TEXT, 'Identifies the page type of this page'),
+                            'grayout' => new external_value(PARAM_INT, 'If is required to apply a grayout'),
+                            'answerdata' => new external_single_structure(
+                                array(
+                                    'score' => new external_value(PARAM_TEXT, 'The score (text version)'),
+                                    'response' => new external_value(PARAM_RAW, 'The response text'),
+                                    'responseformat' => new external_format_value('response'),
+                                    'answers' => new external_multiple_structure(
+                                        new external_multiple_structure(new external_value(PARAM_RAW, 'Possible answers and info'))
+                                    )
+                                ), 'Answer data (empty in content pages from Moodle 1.9)', VALUE_OPTIONAL
+                            )
+                        )
+                    )
+                ),
+                'userstats' => new external_single_structure(
+                    array(
+                        'grade' => new external_value(PARAM_FLOAT, 'Attempt final grade'),
+                        'completed' => new external_value(PARAM_INT, 'Time completed'),
+                        'timetotake' => new external_value(PARAM_INT, 'Time taken'),
+                        'gradeinfo' => self::get_user_attempt_grade_structure(VALUE_OPTIONAL)
                     )
                 ),
                 'warnings' => new external_warnings(),
