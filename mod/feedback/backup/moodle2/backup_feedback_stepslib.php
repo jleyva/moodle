@@ -50,7 +50,9 @@ class backup_feedback_activity_structure_step extends backup_activity_structure_
                                                 'publish_stats',
                                                 'timeopen',
                                                 'timeclose',
+                                                'timecreated',
                                                 'timemodified',
+                                                'usermodified',
                                                 'completionsubmit'));
 
         $completeds = new backup_nested_element('completeds');

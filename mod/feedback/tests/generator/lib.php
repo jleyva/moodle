@@ -70,8 +70,14 @@ class mod_feedback_generator extends testing_module_generator {
         if (!isset($record->timeclose)) {
             $record->timeclose = 0;
         }
+        if (!isset($record->timecreated)) {
+            $record->timecreated = time();
+        }
         if (!isset($record->timemodified)) {
             $record->timemodified = time();
+        }
+        if (!isset($record->usermodified)) {
+            $record->usermodified = 0;
         }
         if (!isset($record->completionsubmit)) {
             $record->completionsubmit = 0;

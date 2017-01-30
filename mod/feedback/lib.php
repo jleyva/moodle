@@ -84,9 +84,11 @@ function feedback_supports($feature) {
  * @return int
  */
 function feedback_add_instance($feedback) {
-    global $DB;
+    global $DB, $USER;
 
-    $feedback->timemodified = time();
+    $feedback->timecreated = time();
+    $feedback->timemodified = $feedback->timecreated;
+    $feedback->usermodified = $USER->id;
     $feedback->id = '';
 
     if (empty($feedback->site_after_submit)) {
@@ -130,9 +132,10 @@ function feedback_add_instance($feedback) {
  * @return boolean
  */
 function feedback_update_instance($feedback) {
-    global $DB;
+    global $DB, $USER;
 
     $feedback->timemodified = time();
+    $feedback->usermodified = $USER->id;
     $feedback->id = $feedback->instance;
 
     if (empty($feedback->site_after_submit)) {

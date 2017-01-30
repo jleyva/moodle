@@ -55,6 +55,9 @@ class restore_feedback_activity_structure_step extends restore_activity_structur
 
         $data->timeopen = $this->apply_date_offset($data->timeopen);
         $data->timeclose = $this->apply_date_offset($data->timeclose);
+        if (isset($data->timecreated)) {
+            $data->timecreated = $this->apply_date_offset($data->timecreated);
+        }
         $data->timemodified = $this->apply_date_offset($data->timemodified);
 
         // insert the feedback record
