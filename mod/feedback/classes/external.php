@@ -30,6 +30,7 @@ require_once("$CFG->libdir/externallib.php");
 
 use mod_feedback\external\feedback_summary_exporter;
 use mod_feedback\feedback;
+use mod_feedback\external\feedback_access_information_exporter;
 
 /**
  * Feedback external functions
@@ -135,5 +136,90 @@ class mod_feedback_external extends external_api {
                 'warnings' => new external_warnings(),
             )
         );
+    }
+
+    /**
+     * Utility function for validating a feedback.
+     *
+     * @param int $feedbackid feedback instance id
+     * @return array array containing the feedback persistent, course, context and course module objects
+     * @since  Moodle 3.3
+     */
+    protected static function validate_feedback($feedbackid) {
+        global $DB, $USER;
+
+        // Request and permission validation.
+        $feedback = $DB->get_record('feedback', array('id' => $feedbackid), '*', MUST_EXIST);
+        list($course, $cm) = get_course_and_cm_from_instance($feedback, 'feedback');
+
+        $feedback = new feedback(0, $feedback);
+
+        $context = context_module::instance($cm->id);
+        self::validate_context($context);
+
+        return array($feedback, $course, $cm, $context);
+    }
+
+    /**
+     * Describes the parameters for get_access_information.
+     *
+     * @return external_external_function_parameters
+     * @since Moodle 3.3
+     */
+    public static function get_access_information_parameters() {
+        return new external_function_parameters (
+            array(
+                'feedbackid' => new external_value(PARAM_INT, 'feedback instance id')
+            )
+        );
+    }
+
+    /**
+     * Return access information for a given feedback.
+     *
+     * @param int $feedbackid feedback instance id
+     * @return array of warnings and the access information
+     * @since Moodle 3.3
+     * @throws  moodle_exception
+     */
+    public static function get_access_information($feedbackid) {
+        global $PAGE;
+
+        $params = array(
+            'feedbackid' => $feedbackid
+        );
+        $params = self::validate_parameters(self::get_access_information_parameters(), $params);
+
+        list($feedback, $course, $cm, $context) = self::validate_feedback($params['feedbackid']);
+        $feedbackcompletion = new mod_feedback_completion($feedback->to_record(), $cm, $course->id);
+
+        $result = array();
+        // Capabilities first.
+        $result['canedititems'] = has_capability('mod/feedback:edititems', $context);
+        $result['canviewreports'] = has_capability('mod/feedback:viewreports', $context);
+        $result['candeletesubmissions'] = has_capability('mod/feedback:deletesubmissions', $context);
+        $result['canmapcourse'] = has_capability('mod/feedback:mapcourse', $context);
+        $result['canviewanalysis'] = $feedbackcompletion->can_view_analysis();
+        $result['cancomplete'] = $feedbackcompletion->can_complete();
+        $result['cansubmit'] = $feedbackcompletion->can_submit();
+
+        // Status information.
+        $result['isempty'] = $feedbackcompletion->is_empty();
+        $result['isopen'] = $feedbackcompletion->is_open();
+        $anycourse = ($course->id == SITEID) ? true : false;
+        $result['isalreadysubmitted'] = $feedbackcompletion->is_already_submitted($anycourse);
+
+        $exporter = new feedback_access_information_exporter($result);
+        return $exporter->export($PAGE->get_renderer('core'));
+    }
+
+    /**
+     * Describes the get_access_information return value.
+     *
+     * @return external_single_structure
+     * @since Moodle 3.3
+     */
+    public static function get_access_information_returns() {
+        return feedback_access_information_exporter::get_read_structure();
     }
 }
