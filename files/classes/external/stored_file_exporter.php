@@ -139,6 +139,7 @@ class stored_file_exporter extends \core\external\exporter {
     }
 
     protected function get_other_values(renderer_base $output) {
+        $context = $this->related['context'];
         $filename = $this->file->get_filename();
         $filenameshort = $filename;
         if (core_text::strlen($filename) > 25) {
@@ -149,11 +150,15 @@ class stored_file_exporter extends \core\external\exporter {
         $icon = $this->file->is_directory() ? file_folder_icon() : file_file_icon($this->file);
         $iconurl = $output->pix_url($icon, 'core');
 
+        // Special case for modules intro file.
+        $filearea = $this->file->get_filearea();
+        $itemid = ($context->contextlevel == CONTEXT_MODULE && $filearea == 'intro') ? null : $this->file->get_itemid();
+
         $url = moodle_url::make_pluginfile_url(
             $this->file->get_contextid(),
             $this->file->get_component(),
-            $this->file->get_filearea(),
-            $this->file->get_itemid(),
+            $filearea,
+            $itemid,
             $this->file->get_filepath(),
             $this->file->get_filename(),
             true
