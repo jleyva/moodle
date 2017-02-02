@@ -596,15 +596,111 @@ class mod_feedback_external extends external_api {
     }
 
     /**
-     * Describes the get_page_contents return value.
+     * Describes the get_page return value.
      *
      * @return external_single_structure
      * @since Moodle 3.3
      */
-    public static function get_page_contents_returns() {
+    public static function get_page_returns() {
         return new external_single_structure(
             array(
                 'pagecontents' => new external_value(PARAM_RAW, 'The page contents.'),
+                'warnings' => new external_warnings(),
+            )
+        );
+    }
+
+    /**
+     * Describes the parameters for process_page.
+     *
+     * @return external_function_parameters
+     * @since Moodle 3.3
+     */
+    public static function process_page_parameters() {
+        return new external_function_parameters (
+            array(
+                'feedbackid' => new external_value(PARAM_INT, 'Feedback instance id'),
+                'page' => new external_value(PARAM_INT, 'The page being processed'),
+                'data' => new external_multiple_structure(
+                    new external_single_structure(
+                        array(
+                            'name' => new external_value(PARAM_RAW, 'data name'),
+                            'value' => new external_value(PARAM_RAW, 'data value'),
+                        )
+                    ), 'the data to be processed'
+                ),
+                'goprevious' => new external_value(PARAM_BOOL, 'Whether we want to jump to previous page', VALUE_DEFAULT, false),
+            )
+        );
+    }
+
+    /**
+     * Get a single feedback page information including questions rendered.
+     *
+     * @param array $feedbackid feedback instance id
+     * @param array $page the page being processed
+     * @param array $data the data to be processed
+     * @return array of warnings and launch information
+     * @since Moodle 3.3
+     */
+    public static function process_page($feedbackid, $page, $data, $goprevious = false) {
+        global $SESSION;
+
+        $params = array('feedbackid' => $feedbackid, 'page' => $page, 'data' => $data, 'goprevious' => $goprevious);
+        $params = self::validate_parameters(self::process_page_parameters(), $params);
+        $warnings = array();
+        $siteaftersubmit = $completionpagecontents = '';
+
+        list($feedback, $course, $cm, $context) = self::validate_feedback($params['feedbackid']);
+        // Check we can do a new submission (or continue an existing).
+        $feedbackcompletion = self::validate_feedback_access($feedback,  $course, $cm, $context, true);
+
+        // Create the $_POST object required by the feedback question engine.
+        $_POST = array();
+        foreach ($data as $element) {
+            $_POST[$element['name']] = $element['value'];
+        }
+        // Ignore sesskey (deep in some APIs), the request is already validated.
+        $USER->ignoresesskey = true;
+
+        $feedbackcompletion->process_page($params['page'], $params['goprevious']);
+        $completed = $feedbackcompletion->just_completed();
+        if ($completed) {
+            $jumpto = 0;
+            if ($feedback->get('page_after_submit')) {
+                $completionpagecontents = $feedbackcompletion->page_after_submit();
+            }
+
+            if ($feedback->get('site_after_submit')) {
+                $siteaftersubmit = feedback_encode_target_url($feedback->get('site_after_submit'));
+            }
+        } else {
+            $jumpto = $feedbackcompletion->get_jumpto();
+        }
+
+        $result = array(
+            'jumpto' => $jumpto,
+            'completed' => $completed,
+            'completionpagecontents' => $completionpagecontents,
+            'siteaftersubmit' => $siteaftersubmit,
+            'warnings' => $warnings
+        );
+        return $result;
+    }
+
+    /**
+     * Describes the process_page return value.
+     *
+     * @return external_single_structure
+     * @since Moodle 3.3
+     */
+    public static function process_page_returns() {
+        return new external_single_structure(
+            array(
+                'jumpto' => new external_value(PARAM_INT, 'The page to jump.'),
+                'completed' => new external_value(PARAM_BOOL, 'If the user completed the feedback.'),
+                'completionpagecontents' => new external_value(PARAM_RAW, 'The page contents.'),
+                'siteaftersubmit' => new external_value(PARAM_RAW, 'The link to show after submit.'),
                 'warnings' => new external_warnings(),
             )
         );
