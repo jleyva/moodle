@@ -515,7 +515,7 @@ class mod_feedback_completion extends mod_feedback_structure {
      *
      * @return stdClass record from feedback_completed or false if not found
      */
-    protected function find_last_completed() {
+    public function find_last_completed() {
         global $USER, $DB;
         if (isloggedin() || isguestuser()) {
             // Not possible to retrieve completed feedback for guests.
