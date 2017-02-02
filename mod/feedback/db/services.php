@@ -61,4 +61,12 @@ $functions = array(
         'capabilities'  => 'mod/feedback:view',
         'services'      => array(MOODLE_OFFICIAL_MOBILE_SERVICE)
     ),
+    'mod_feedback_get_current_completed_tmp' => array(
+        'classname'     => 'mod_feedback_external',
+        'methodname'    => 'get_current_completed_tmp',
+        'description'   => 'Returns the temporary completion record for the current user or guest session.',
+        'type'          => 'read',
+        'capabilities'  => 'mod/feedback:view',
+        'services'      => array(MOODLE_OFFICIAL_MOBILE_SERVICE)
+    ),
 );
