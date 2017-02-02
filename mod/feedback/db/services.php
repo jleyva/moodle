@@ -85,4 +85,12 @@ $functions = array(
         'capabilities'  => 'mod/feedback:complete',
         'services'      => array(MOODLE_OFFICIAL_MOBILE_SERVICE)
     ),
+    'mod_feedback_get_page_contents' => array(
+        'classname'     => 'mod_feedback_external',
+        'methodname'    => 'get_page_contents',
+        'description'   => 'Get a single feedback page content including questions rendered.',
+        'type'          => 'read',
+        'capabilities'  => 'mod/feedback:complete',
+        'services'      => array(MOODLE_OFFICIAL_MOBILE_SERVICE)
+    ),
 );

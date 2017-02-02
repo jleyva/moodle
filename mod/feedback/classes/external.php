@@ -549,4 +549,64 @@ class mod_feedback_external extends external_api {
             )
         );
     }
+
+    /**
+     * Describes the parameters for get_page_contents.
+     *
+     * @return external_function_parameters
+     * @since Moodle 3.3
+     */
+    public static function get_page_contents_parameters() {
+        return new external_function_parameters (
+            array(
+                'feedbackid' => new external_value(PARAM_INT, 'Feedback instance id'),
+                'page' => new external_value(PARAM_INT, 'The page to get'),
+            )
+        );
+    }
+
+    /**
+     * Get a single feedback page information including questions rendered.
+     *
+     * @param array $feedbackid feedback instance id
+     * @param array $page the page to get
+     * @return array of warnings and launch information
+     * @since Moodle 3.3
+     */
+    public static function get_page_contents($feedbackid, $page) {
+        global $SESSION;
+
+        $params = array('feedbackid' => $feedbackid, 'page' => $page);
+        $params = self::validate_parameters(self::get_page_contents_parameters(), $params);
+        $warnings = array();
+
+        list($feedback, $course, $cm, $context) = self::validate_feedback($params['feedbackid']);
+        // Check we can do a new submission (or continue an existing).
+        $feedbackcompletion = self::validate_feedback_access($feedback,  $course, $cm, $context, true);
+
+        // Init the page processing to display the questions.
+        $feedbackcompletion->process_page($params['page']);
+        $pagecontents = $feedbackcompletion->render_items();
+
+        $result = array(
+            'pagecontents' => $pagecontents,
+            'warnings' => $warnings
+        );
+        return $result;
+    }
+
+    /**
+     * Describes the get_page_contents return value.
+     *
+     * @return external_single_structure
+     * @since Moodle 3.3
+     */
+    public static function get_page_contents_returns() {
+        return new external_single_structure(
+            array(
+                'pagecontents' => new external_value(PARAM_RAW, 'The page contents.'),
+                'warnings' => new external_warnings(),
+            )
+        );
+    }
 }
