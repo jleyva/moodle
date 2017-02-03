@@ -289,4 +289,26 @@ class feedback_item_info extends feedback_item_base {
     public function can_switch_require() {
         return false;
     }
+
+    /**
+     * Return the analysis data ready for external functions.
+     *
+     * @param stdClass $item     the item (question) information
+     * @param int      $groupid  the group id to filter data (optional)
+     * @param int      $courseid the course id (optional)
+     * @return array an array of data with non scalar types json encoded
+     * @since  Moodle 3.3
+     */
+    public function get_analysed_for_external($item, $groupid = false, $courseid = false) {
+
+        $externaldata = array();
+        $data = $this->get_analysed($item, $groupid, $courseid);
+
+        if (is_array($data->data)) {
+            foreach ($data->data as $d) {
+                $externaldata[] = json_encode($d);
+            }
+        }
+        return $externaldata;
+    }
 }
