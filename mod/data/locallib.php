@@ -755,7 +755,7 @@ function data_get_time_availability_status($data, $canmanageentries = null, $con
  */
 function data_require_time_available($data, $canmanageentries = null, $context = null) {
 
-    list($available, $warnings) = data_get_availability_status($data, $canmanageentries, $context);
+    list($available, $warnings) = data_get_time_availability_status($data, $canmanageentries, $context);
 
     if (!$available) {
         $reason = current(array_keys($warnings));
