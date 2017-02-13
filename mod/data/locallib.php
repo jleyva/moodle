@@ -1172,3 +1172,19 @@ function data_build_search_array($data, $paging, $searcharray, $defaults = null)
     }
     return [$searcharray, $search];
 }
+
+/**
+ * Approves or disapprove an entry.
+ *
+ * @param  int $entryid the entry to approve or disapprove.
+ * @param  bool $approve Whether to approve or disapprove (true for approve false otherwise).
+ * @since  Moodle 3.3
+ */
+function data_approve_entry($entryid, $approve) {
+    global $DB;
+
+    $newrecord = new stdClass();
+    $newrecord->id = $entryid;
+    $newrecord->approved = $approve ? 1 : 0;
+    $DB->update_record('data_records', $newrecord);
+}
