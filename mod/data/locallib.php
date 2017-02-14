@@ -919,6 +919,11 @@ function data_search_entries($data, $cm, $context, $mode, $currentgroup, $search
                     $params['search_flname_'.$i] = "%$val->data%";
                     continue;
                 }
+                if ($key == DATA_TIMEMODIFIED) {
+                    $searchselect .= " AND r.timemodified >= :timemodified";
+                    $params['timemodified'] = $val;
+                    continue;
+                }
                 $advtables .= ', {data_content} c'.$key.' ';
                 $advwhere .= ' AND c'.$key.'.recordid = r.id';
                 $advsearchselect .= ' AND ('.$val->sql.') ';
