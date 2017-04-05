@@ -155,10 +155,10 @@ class api {
 
         // Identity providers.
         $authsequence = get_enabled_auth_plugins(true);
-        $loginpagedata = new \core_auth\output\login($authsequence);
-        $loginpagedata = $loginpagedata->export_for_template($OUTPUT);
-        if (!empty($loginpagedata->identityproviders)) {
-            $settings['identityproviders'] = $loginpagedata->identityproviders;
+        $identityproviders = \auth_plugin_base::get_identity_providers($authsequence);
+        $identityprovidersdata = \auth_plugin_base::prepare_identity_providers_for_output($identityproviders, $OUTPUT);
+        if (!empty($identityprovidersdata)) {
+            $settings['identityproviders'] = $identityprovidersdata;
         }
 
         return $settings;

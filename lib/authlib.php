@@ -610,6 +610,47 @@ class auth_plugin_base {
      */
     public function postlogout_hook($user) {
     }
+
+    /**
+     * Return the list of enabled identity providers.
+     *
+     * @param array $authsequence site's auth sequence (list of auth plugins ordered)
+     * @return array an array of enabled identity providers
+     */
+    public static function get_identity_providers($authsequence) {
+        global $SESSION;
+
+        $identityproviders = [];
+        foreach ($authsequence as $authname) {
+            $authplugin = get_auth_plugin($authname);
+            $identityproviders = array_merge($identityproviders, $authplugin->loginpage_idp_list($SESSION->wantsurl));
+        }
+        return $identityproviders;
+    }
+
+    /**
+     * Prepare a list of identity providers for output.
+     *
+     * @param array $identityproviders
+     * @param renderer_base $output
+     * @return array the identity providers ready for output
+     */
+    public static function prepare_identity_providers_for_output($identityproviders, renderer_base $output) {
+        $data = [];
+        foreach ($identityproviders as $idp) {
+            if (!empty($idp['icon'])) {
+                $idp['iconurl'] = $output->image_url($idp['icon']->key, $idp['icon']->component);
+            } else if ($idp['iconurl'] instanceof moodle_url) {
+                $idp['iconurl'] = $idp['iconurl']->out(false);
+            }
+            unset($idp['icon']);
+            if ($idp['url'] instanceof moodle_url) {
+                $idp['url'] = $idp['url']->out(false);
+            }
+            $data[] = $idp;
+        }
+        return $data;
+    }
 }
 
 /**
