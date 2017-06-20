@@ -191,6 +191,7 @@ class mod_workshop_external_testcase extends externallib_advanced_testcase {
         $this->assertFalse($result['modifyingsubmissionallowed']);
         $this->assertFalse($result['assessingallowed']);
         $this->assertFalse($result['assessingexamplesallowed']);
+        $this->assertTrue($result['examplesassessed']);
 
         // Switch phase.
         $workshop = new workshop($this->workshop, $this->cm, $this->course);
@@ -202,6 +203,7 @@ class mod_workshop_external_testcase extends externallib_advanced_testcase {
         $this->assertTrue($result['modifyingsubmissionallowed']);
         $this->assertFalse($result['assessingallowed']);
         $this->assertFalse($result['assessingexamplesallowed']);
+        $this->assertTrue($result['examplesassessed']);
 
         // Switch to next (to assessment).
         $workshop = new workshop($this->workshop, $this->cm, $this->course);
@@ -213,6 +215,7 @@ class mod_workshop_external_testcase extends externallib_advanced_testcase {
         $this->assertFalse($result['modifyingsubmissionallowed']);
         $this->assertTrue($result['assessingallowed']);
         $this->assertFalse($result['assessingexamplesallowed']);
+        $this->assertTrue($result['examplesassessed']);
     }
 
     /**
@@ -374,5 +377,128 @@ class mod_workshop_external_testcase extends externallib_advanced_testcase {
         $this->setUser($this->student);
         $this->setExpectedException('moodle_exception');
         mod_workshop_external::view_workshop($this->workshop->id);
+    }
+
+    /**
+     * Test test_add_submission.
+     */
+    public function test_add_submission() {
+        $fs = get_file_storage();
+
+        // Test user with full capabilities.
+        $this->setUser($this->student);
+
+        $title = 'Submission title';
+        $content = 'Submission contents';
+
+        // Create a file in a draft area for inline attachments.
+        $draftidinlineattach = file_get_unused_draft_itemid();
+        $usercontext = context_user::instance($this->student->id);
+        $filenameimg = 'shouldbeanimage.txt';
+        $filerecordinline = array(
+            'contextid' => $usercontext->id,
+            'component' => 'user',
+            'filearea'  => 'draft',
+            'itemid'    => $draftidinlineattach,
+            'filepath'  => '/',
+            'filename'  => $filenameimg,
+        );
+        $fs->create_file_from_string($filerecordinline, 'image contents (not really)');
+
+        // Create a file in a draft area for regular attachments.
+        $draftidattach = file_get_unused_draft_itemid();
+        $filerecordattach = $filerecordinline;
+        $attachfilename = 'attachment.txt';
+        $filerecordattach['filename'] = $attachfilename;
+        $filerecordattach['itemid'] = $draftidattach;
+        $fs->create_file_from_string($filerecordattach, 'simple text attachment');
+
+        $options = array(
+            array('name' => 'content', 'value' => $content),
+            array('name' => 'contentformat', 'value' => FORMAT_MOODLE),
+            array('name' => 'inlineattachmentsid', 'value' => $draftidinlineattach),
+            array('name' => 'attachmentsid', 'value' => $draftidattach),
+        );
+
+        // Switch to submission phase.
+        $workshop = new workshop($this->workshop, $this->cm, $this->course);
+        $workshop->switch_phase(workshop::PHASE_SUBMISSION);
+
+        $result = mod_workshop_external::add_submission($this->workshop->id, $title, $options);
+        $result = external_api::clean_returnvalue(mod_workshop_external::add_submission_returns(), $result);
+        $this->assertEmpty($result['warnings']);
+
+        // Check submission created.
+        $submission = $workshop->get_submission_by_author($this->student->id);
+        $this->assertEquals($result['submissionid'], $submission->id);
+        $this->assertEquals($title, $submission->title);
+        $this->assertEquals($content, $submission->content);
+
+        // Check files.
+        $contentfiles = $fs->get_area_files($this->context->id, 'mod_workshop', 'submission_content', $submission->id);
+        $this->assertCount(2, $contentfiles);
+        foreach ($contentfiles as $file) {
+            if ($file->is_directory()) {
+                continue;
+            } else {
+                $this->assertEquals($filenameimg, $file->get_filename());
+            }
+        }
+        $contentfiles = $fs->get_area_files($this->context->id, 'mod_workshop', 'submission_attachment', $submission->id);
+        $this->assertCount(2, $contentfiles);
+        foreach ($contentfiles as $file) {
+            if ($file->is_directory()) {
+                continue;
+            } else {
+                $this->assertEquals($attachfilename, $file->get_filename());
+            }
+        }
+    }
+
+    /**
+     * Test test_add_submission invalid phase.
+     */
+    public function test_add_submission_invalid_phase() {
+        $this->setUser($this->student);
+
+        $this->expectException('moodle_exception');
+        mod_workshop_external::add_submission($this->workshop->id, 'Test');
+    }
+
+    /**
+     * Test test_add_submission empty title.
+     */
+    public function test_add_submission_empty_title() {
+        $this->setUser($this->student);
+
+        // Switch to submission phase.
+        $workshop = new workshop($this->workshop, $this->cm, $this->course);
+        $workshop->switch_phase(workshop::PHASE_SUBMISSION);
+
+        $this->expectException('moodle_exception');
+        mod_workshop_external::add_submission($this->workshop->id, '');
+    }
+
+    /**
+     * Test test_add_submission already added.
+     */
+    public function test_add_submission_already_added() {
+        $this->setUser($this->student);
+
+        // Switch to submission phase.
+        $workshop = new workshop($this->workshop, $this->cm, $this->course);
+        $workshop->switch_phase(workshop::PHASE_SUBMISSION);
+
+        // Create the submission.
+        $result = mod_workshop_external::add_submission($this->workshop->id, 'My submission');
+        $result = external_api::clean_returnvalue(mod_workshop_external::add_submission_returns(), $result);
+
+        // Try to create it again.
+        $result = mod_workshop_external::add_submission($this->workshop->id, 'My submission');
+        $result = external_api::clean_returnvalue(mod_workshop_external::add_submission_returns(), $result);
+        $this->assertEquals(0, $result['submissionid']);
+        $this->assertCount(1, $result['warnings']);
+        $this->assertEquals('fielderror', $result['warnings'][0]['warningcode']);
+        $this->assertEquals('title', $result['warnings'][0]['item']);
     }
 }

@@ -197,6 +197,7 @@ class mod_workshop_external extends external_api {
         if (is_null($result['assessingexamplesallowed'])) {
             $result['assessingexamplesallowed'] = false;
         }
+        $result['examplesassessed'] = $workshop->check_examples_assessed($USER->id);
 
         $result['warnings'] = array();
         return $result;
@@ -219,6 +220,8 @@ class mod_workshop_external extends external_api {
                 'Is the user allowed to create/edit his assessments?'),
             'assessingexamplesallowed' => new external_value(PARAM_BOOL,
                 'Are reviewers allowed to create/edit their assessments of the example submissions?.'),
+            'examplesassessed' => new external_value(PARAM_BOOL,
+                'Whether the given user has assessed all his required examples (always true if there are not examples to assess).'),
             'warnings' => new external_warnings()
         );
 
@@ -418,5 +421,134 @@ class mod_workshop_external extends external_api {
                 'warnings' => new external_warnings(),
             )
         );
+    }
+
+    /**
+     * Returns the description of the external function parameters.
+     *
+     * @return external_function_parameters
+     * @since Moodle 3.4
+     */
+    public static function add_submission_parameters() {
+        return new external_function_parameters(array(
+            'workshopid' => new external_value(PARAM_INT, 'Workshop id'),
+            'title' => new external_value(PARAM_TEXT, 'Submission title'),
+            'options' => new external_multiple_structure (
+                new external_single_structure(
+                    array(
+                        'name' => new external_value(PARAM_ALPHANUM,
+                            'The allowed keys (value format) are:
+                            content (str): Submission text content
+                            contentformat (int); the format used for the content
+                            inlineattachmentsid (int); the draft file area id for inline attachments in the content
+                            attachmentsid (int); the draft file area id for attachments'
+                        ),
+                        'value' => new external_value(PARAM_RAW, 'the value of the option (validated inside the function)')
+                    )
+                ), 'Optional data', VALUE_DEFAULT, array()
+            )
+        ));
+    }
+
+
+    /**
+     * Add a new submission to a given workshop.
+     *
+     * @param int $workshopid the workshop id
+     * @param string $title    the submission title
+     * @param array  $options    optional data
+     * @return array Containing submission and warnings.
+     * @since Moodle 3.4
+     * @throws moodle_exception
+     */
+    public static function add_submission($workshopid, $title, $options = array()) {
+        global $USER;
+
+        $params = self::validate_parameters(self::add_submission_parameters(), array(
+            'workshopid' => $workshopid,
+            'title' => $title,
+            'options' => $options,
+        ));
+        $warnings = array();
+
+        // Get and validate the workshop.
+        list($workshop, $course, $cm, $context) = self::validate_workshop($params['workshopid']);
+        require_capability('mod/workshop:submit', $context);
+
+        // Check if we can submit now.
+        $canaddsubmission = $workshop->creating_submission_allowed($USER->id);
+        $canaddsubmission = $canaddsubmission && $workshop->check_examples_assessed($USER->id);
+        if (!$canaddsubmission) {
+            throw new moodle_exception('nopermissions', 'error', '', 'add submission');
+        }
+
+        // Prepare the submission object.
+        $submission = new stdClass;
+        $submission->id = null;
+        $submission->cmid = $cm->id;
+        $submission->example = 0;
+        $submission->title = trim($params['title']);
+        $submission->content_editor = array(
+            'text' => '',
+            'format' => FORMAT_MOODLE,
+        );
+        if (empty($submission->title)) {
+            throw new moodle_exception('errorinvalidparam', 'webservice', '', 'title');
+        }
+
+        // Options.
+        foreach ($params['options'] as $option) {
+            $name = trim($option['name']);
+            switch ($name) {
+                case 'content':
+                    $submission->content_editor['text'] = $option['value'];
+                    break;
+                case 'contentformat':
+                    $submission->content_editor['format'] = clean_param($option['value'], PARAM_INT);
+                    break;
+                case 'inlineattachmentsid':
+                    $submission->content_editor['itemid'] = clean_param($option['value'], PARAM_INT);
+                    break;
+                case 'attachmentsid':
+                    $submission->attachment_filemanager = clean_param($option['value'], PARAM_INT);
+                    break;
+                default:
+                    throw new moodle_exception('errorinvalidparam', 'webservice', '', $name);
+            }
+        }
+
+        $errors = $workshop->validate_submission_data((array) $submission);
+        // We can get several errors, return them in warnings.
+        if (!empty($errors)) {
+            $submission->id = 0;
+            foreach ($errors as $itemname => $message) {
+                $warnings[] = array(
+                    'item' => $itemname,
+                    'itemid' => 0,
+                    'warningcode' => 'fielderror',
+                    'message' => s($message)
+                );
+            }
+        } else {
+            $submission->id = $workshop->edit_submission($submission);
+        }
+
+        return array(
+            'submissionid' => $submission->id,
+            'warnings' => $warnings
+        );
+    }
+
+    /**
+     * Returns the description of the external function return value.
+     *
+     * @return external_description
+     * @since Moodle 3.4
+     */
+    public static function add_submission_returns() {
+        return new external_single_structure(array(
+            'submissionid' => new external_value(PARAM_INT, 'New workshop submission id (0 if it wasn\'t created).'),
+            'warnings' => new external_warnings()
+        ));
     }
 }
