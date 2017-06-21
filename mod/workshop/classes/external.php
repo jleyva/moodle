@@ -551,4 +551,127 @@ class mod_workshop_external extends external_api {
             'warnings' => new external_warnings()
         ));
     }
+
+    /**
+     * Returns the description of the external function parameters.
+     *
+     * @return external_function_parameters
+     * @since Moodle 3.4
+     */
+    public static function update_submission_parameters() {
+        return new external_function_parameters(array(
+            'submissionid' => new external_value(PARAM_INT, 'Submission id'),
+            'title' => new external_value(PARAM_TEXT, 'Submission title'),
+            'options' => new external_multiple_structure (
+                new external_single_structure(
+                    array(
+                        'name' => new external_value(PARAM_ALPHANUM,
+                            'The allowed keys (value format) are:
+                            content (str): Submission text content
+                            contentformat (int); the format used for the content
+                            inlineattachmentsid (int); the draft file area id for inline attachments in the content
+                            attachmentsid (int); the draft file area id for attachments'
+                        ),
+                        'value' => new external_value(PARAM_RAW, 'the value of the option (validated inside the function)')
+                    )
+                ), 'Optional data', VALUE_DEFAULT, array()
+            )
+        ));
+    }
+
+
+    /**
+     * Updates the given submission.
+     *
+     * @param int $submissionid the submission id
+     * @param string $title     the submission title
+     * @param array  $options   optional data
+     * @return array Containing submission and warnings.
+     * @since Moodle 3.4
+     * @throws moodle_exception
+     */
+    public static function update_submission($submissionid, $title, $options = array()) {
+        global $USER, $DB;
+
+        $params = self::validate_parameters(self::update_submission_parameters(), array(
+            'submissionid' => $submissionid,
+            'title' => $title,
+            'options' => $options,
+        ));
+        $warnings = array();
+
+        // Get and validate the submission and workshop.
+        $submission = $DB->get_record('workshop_submissions', array('id' => $params['submissionid']), '*', MUST_EXIST);
+        list($workshop, $course, $cm, $context) = self::validate_workshop($submission->workshopid);
+        require_capability('mod/workshop:submit', $context);
+
+        // Check if we can update the submission.
+        $canupdatesubmission = $submission->authorid == $USER->id;
+        $canupdatesubmission = $canupdatesubmission && $workshop->modifying_submission_allowed($USER->id);
+        $canupdatesubmission = $canupdatesubmission && $workshop->check_examples_assessed($USER->id);
+        if (!$canupdatesubmission) {
+            throw new moodle_exception('nopermissions', 'error', '', 'update submission');
+        }
+
+        // Prepare the submission object.
+        $submission->title = trim($params['title']);
+        if (empty($submission->title)) {
+            throw new moodle_exception('errorinvalidparam', 'webservice', '', 'title');
+        }
+
+        // Options.
+        foreach ($params['options'] as $option) {
+            $name = trim($option['name']);
+            switch ($name) {
+                case 'content':
+                    $submission->content_editor['text'] = $option['value'];
+                    break;
+                case 'contentformat':
+                    $submission->content_editor['format'] = clean_param($option['value'], PARAM_INT);
+                    break;
+                case 'inlineattachmentsid':
+                    $submission->content_editor['itemid'] = clean_param($option['value'], PARAM_INT);
+                    break;
+                case 'attachmentsid':
+                    $submission->attachment_filemanager = clean_param($option['value'], PARAM_INT);
+                    break;
+                default:
+                    throw new moodle_exception('errorinvalidparam', 'webservice', '', $name);
+            }
+        }
+
+        $errors = $workshop->validate_submission_data((array) $submission);
+        // We can get several errors, return them in warnings.
+        if (!empty($errors)) {
+            $submission->id = 0;
+            foreach ($errors as $itemname => $message) {
+                $warnings[] = array(
+                    'item' => $itemname,
+                    'itemid' => 0,
+                    'warningcode' => 'fielderror',
+                    'message' => s($message)
+                );
+            }
+        } else {
+            $submission->id = $workshop->edit_submission($submission);
+        }
+
+        return array(
+            'status' => true,
+            'warnings' => $warnings
+        );
+    }
+
+    /**
+     * Returns the description of the external function return value.
+     *
+     * @return external_description
+     * @since Moodle 3.4
+     */
+    public static function update_submission_returns() {
+        return new external_single_structure(array(
+            'status' => new external_value(PARAM_BOOL, 'True if the submission was updated.'),
+            'warnings' => new external_warnings()
+        ));
+    }
 }
