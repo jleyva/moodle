@@ -30,6 +30,7 @@ require_once("$CFG->libdir/externallib.php");
 require_once($CFG->dirroot . '/mod/workshop/locallib.php');
 
 use mod_workshop\external\workshop_summary_exporter;
+use mod_workshop\external\submission_exporter;
 
 /**
  * Workshop external functions
@@ -739,5 +740,166 @@ class mod_workshop_external extends external_api {
             'status' => new external_value(PARAM_BOOL, 'True if the submission was deleted.'),
             'warnings' => new external_warnings()
         ));
+    }
+
+    /**
+     * Helper method for returning the submission data according the current user capabilities and current phase.
+     *
+     * @param  stdClass $submission the submission data
+     * @param  workshop $workshop   the workshop class
+     * @return stdClass object with the submission data filtered
+     * @since Moodle 3.4
+     */
+    protected static function prepare_submission_for_external($submission, workshop $workshop) {
+        global $USER;
+        static $showpublishedauthor = null;
+        static $showauthor = null;
+        static $canviewall = null;
+
+        if (is_null($showpublishedauthor)) {
+            $showpublishedauthor = has_capability('mod/workshop:viewauthorpublished', $workshop->context);
+        }
+        if (is_null($showauthor)) {
+            $showauthor = has_capability('mod/workshop:viewauthornames', $workshop->context);
+        }
+        if (is_null($canviewall)) {
+            $canviewall = has_capability('mod/workshop:viewallsubmissions', $workshop->context);
+        }
+
+        $ownsubmission = $submission->authorid == $USER->id;
+        if ($submission->published) {
+            $submission->authorid = (!$showpublishedauthor && !$ownsubmission) ? 0 : $submission->authorid;
+        } else if (!$showauthor && !$ownsubmission) {
+            $submission->authorid = 0;
+        }
+        if (!($workshop->phase == workshop::PHASE_CLOSED) || !($ownsubmission || $canviewall)) {
+            // Remove all the grading or feedback information (all the optional fields).
+            $properties = submission_exporter::properties_definition();
+            foreach ($properties as $attribute => $settings) {
+                if (!empty($settings['optional'])) {
+                    unset($submission->{$attribute});
+                }
+            }
+        }
+        return $submission;
+    }
+
+    /**
+     * Returns description of method parameters
+     *
+     * @return external_function_parameters
+     * @since Moodle 3.4
+     */
+    public static function get_submissions_parameters() {
+        return new external_function_parameters(
+            array(
+                'workshopid' => new external_value(PARAM_INT, 'Workshop instance id.'),
+                'userid' => new external_value(PARAM_INT, 'To get submissions done by this user.', VALUE_DEFAULT, 0),
+                'groupid' => new external_value(PARAM_INT, 'Group id, 0 means that the function will determine the user group.',
+                                                   VALUE_DEFAULT, 0),
+                'page' => new external_value(PARAM_INT, 'The page of records to return.', VALUE_DEFAULT, 0),
+                'perpage' => new external_value(PARAM_INT, 'The number of records to return per page.', VALUE_DEFAULT, 0),
+            )
+        );
+    }
+
+    /**
+     * Retrieves all the workshop submissions visible by the current user or the one done by the given user.
+     *
+     * @param int $workshopid       the workshop instance id
+     * @param int $userid           get submissions done by this user
+     * @param int $groupid          (optional) group id, 0 means that the function will determine the user group
+     * @param int $page             page of records to return
+     * @param int $perpage          number of records to return per page
+     * @return array of warnings and the entries
+     * @since Moodle 3.4
+     * @throws moodle_exception
+     */
+    public static function get_submissions($workshopid, $userid = 0, $groupid = 0, $page = 0, $perpage = 0) {
+        global $PAGE, $USER;
+
+        $params = array('workshopid' => $workshopid, 'userid' => $userid, 'groupid' => $groupid,
+            'page' => $page, 'perpage' => $perpage);
+        $params = self::validate_parameters(self::get_submissions_parameters(), $params);
+        $submissions = $warnings = array();
+
+        list($workshop, $course, $cm, $context) = self::validate_workshop($params['workshopid']);
+
+        if (!empty($params['groupid'])) {
+            $groupid = $params['groupid'];
+            // Determine is the group is visible to user.
+            if (!groups_group_visible($groupid, $course, $cm)) {
+                throw new moodle_exception('notingroup');
+            }
+        } else {
+            // Check to see if groups are being used here.
+            if ($groupmode = groups_get_activity_groupmode($cm)) {
+                $groupid = groups_get_activity_group($cm);
+                // Determine is the group is visible to user (this is particullary for the group 0 -> all groups).
+                if (!groups_group_visible($groupid, $course, $cm)) {
+                    throw new moodle_exception('notingroup');
+                }
+            } else {
+                $groupid = 0;
+            }
+        }
+
+        if (!empty($params['userid']) && $params['userid'] != $USER->id) {
+            $user = core_user::get_user($params['userid'], '*', MUST_EXIST);
+            core_user::require_active_user($user);
+            if (!$workshop->check_group_membership($user->id)) {
+                throw new moodle_exception('notingroup');
+            }
+        }
+
+        $totalfilesize = 0;
+        list($submissionsrecords, $totalcount) =
+            $workshop->get_visible_submissions($params['userid'], $groupid, $params['page'], $params['perpage']);
+
+        if ($totalcount) {
+
+            $related = array('context' => $context);
+            foreach ($submissionsrecords as $submission) {
+                $submission = self::prepare_submission_for_external($submission, $workshop);
+
+                $exporter = new submission_exporter($submission, $related);
+                $submissions[] = $exporter->export($PAGE->get_renderer('core'));
+            }
+
+            // Retrieve total files size for the submissions (so external clients know how many data they'd need to download).
+            $fs = get_file_storage();
+            $files = $fs->get_area_files($context->id, 'mod_workshop', array('submission_content', 'submission_attachment'));
+            foreach ($files as $file) {
+                if ($file->is_directory() || !isset($submissionsrecords[$file->get_itemid()])) {
+                    continue;
+                }
+                $totalfilesize += $file->get_filesize();
+            }
+        }
+
+        return array(
+            'submissions' => $submissions,
+            'totalcount' => $totalcount,
+            'totalfilesize' => $totalfilesize,
+        );
+    }
+
+    /**
+     * Returns description of method result value
+     *
+     * @return external_description
+     * @since Moodle 3.4
+     */
+    public static function get_submissions_returns() {
+        return new external_single_structure(
+            array(
+                'submissions' => new external_multiple_structure(
+                    submission_exporter::get_read_structure()
+                ),
+                'totalcount' => new external_value(PARAM_INT, 'Total count of submissions.'),
+                'totalfilesize' => new external_value(PARAM_INT, 'Total size (bytes) of the files included in the submissions.'),
+                'warnings' => new external_warnings()
+            )
+        );
     }
 }
