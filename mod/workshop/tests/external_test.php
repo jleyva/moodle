@@ -205,7 +205,8 @@ class mod_workshop_external_testcase extends externallib_advanced_testcase {
         $this->assertFalse($result['modifyingsubmissionallowed']);
         $this->assertFalse($result['assessingallowed']);
         $this->assertFalse($result['assessingexamplesallowed']);
-        $this->assertTrue($result['examplesassessed']);
+        $this->assertTrue($result['examplesassessedbeforesubmission']);
+        $this->assertTrue($result['examplesassessedbeforeassessment']);
 
         // Switch phase.
         $workshop = new workshop($this->workshop, $this->cm, $this->course);
@@ -217,7 +218,8 @@ class mod_workshop_external_testcase extends externallib_advanced_testcase {
         $this->assertTrue($result['modifyingsubmissionallowed']);
         $this->assertFalse($result['assessingallowed']);
         $this->assertFalse($result['assessingexamplesallowed']);
-        $this->assertTrue($result['examplesassessed']);
+        $this->assertTrue($result['examplesassessedbeforesubmission']);
+        $this->assertTrue($result['examplesassessedbeforeassessment']);
 
         // Switch to next (to assessment).
         $workshop = new workshop($this->workshop, $this->cm, $this->course);
@@ -229,7 +231,8 @@ class mod_workshop_external_testcase extends externallib_advanced_testcase {
         $this->assertFalse($result['modifyingsubmissionallowed']);
         $this->assertTrue($result['assessingallowed']);
         $this->assertFalse($result['assessingexamplesallowed']);
-        $this->assertTrue($result['examplesassessed']);
+        $this->assertTrue($result['examplesassessedbeforesubmission']);
+        $this->assertTrue($result['examplesassessedbeforeassessment']);
     }
 
     /**
