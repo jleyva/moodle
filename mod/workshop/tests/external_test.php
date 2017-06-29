@@ -1543,4 +1543,85 @@ class mod_workshop_external_testcase extends externallib_advanced_testcase {
         $this->expectException('moodle_exception');
         mod_workshop_external::get_grades($this->workshop->id, $this->student->id);
     }
+
+    /**
+     * Test evaluate_assessment.
+     */
+    public function test_evaluate_assessment() {
+        $workshopgenerator = $this->getDataGenerator()->get_plugin_generator('mod_workshop');
+        $submissionid = $workshopgenerator->create_submission($this->workshop->id, $this->student->id);
+        $assessmentid = $workshopgenerator->create_assessment($submissionid, $this->anotherstudentg1->id, array(
+            'weight' => 3,
+            'grade' => 95,
+        ));
+
+        $this->setUser($this->teacher);
+        $data = array(
+            array('name' => 'feedbackreviewer', 'value' => 'The feedback'),
+            array('name' => 'feedbackreviewerformat', 'value' => FORMAT_MOODLE),
+            array('name' => 'weight', 'value' => 25),
+            array('name' => 'gradinggradeover', 'value' => 10),
+        );
+        $result = mod_workshop_external::evaluate_assessment($assessmentid, $data);
+        $result = external_api::clean_returnvalue(mod_workshop_external::evaluate_assessment_returns(), $result);
+        $this->assertTrue($result['status']);
+
+        $result = mod_workshop_external::get_assessment($assessmentid);
+        $result = external_api::clean_returnvalue(mod_workshop_external::get_assessment_returns(), $result);
+        $this->assertEquals('The feedback', $result['assessment']['feedbackreviewer']);
+        $this->assertEquals(25, $result['assessment']['weight']);
+    }
+
+    /**
+     * Test evaluate_assessment_ignore_parameters.
+     */
+    public function test_evaluate_assessment_ignore_parameters() {
+        $workshopgenerator = $this->getDataGenerator()->get_plugin_generator('mod_workshop');
+        $submissionid = $workshopgenerator->create_submission($this->workshop->id, $this->student->id);
+        $assessmentid = $workshopgenerator->create_assessment($submissionid, $this->anotherstudentg1->id, array(
+            'weight' => 3,
+            'grade' => 95,
+        ));
+
+        assign_capability('mod/workshop:allocate', CAP_PROHIBIT, $this->teacherrole->id, $this->context->id);
+        // Empty all the caches that may be affected  by this change.
+        accesslib_clear_all_caches_for_unit_testing();
+
+        $this->setUser($this->teacher);
+        $data = array(
+            array('name' => 'feedbackreviewer', 'value' => 'The feedback'),
+            array('name' => 'feedbackreviewerformat', 'value' => FORMAT_MOODLE),
+            array('name' => 'weight', 'value' => 25),
+            array('name' => 'gradinggradeover', 'value' => 1000),
+        );
+        $result = mod_workshop_external::evaluate_assessment($assessmentid, $data);
+        $result = external_api::clean_returnvalue(mod_workshop_external::evaluate_assessment_returns(), $result);
+        $this->assertTrue($result['status']);
+
+        $result = mod_workshop_external::get_assessment($assessmentid);
+        $result = external_api::clean_returnvalue(mod_workshop_external::get_assessment_returns(), $result);
+        $this->assertNotEquals(25, $result['assessment']['weight']);
+    }
+
+    /**
+     * Test evaluate_assessment_no_permissions.
+     */
+    public function test_evaluate_assessment_no_permissions() {
+        $workshopgenerator = $this->getDataGenerator()->get_plugin_generator('mod_workshop');
+        $submissionid = $workshopgenerator->create_submission($this->workshop->id, $this->student->id);
+        $assessmentid = $workshopgenerator->create_assessment($submissionid, $this->anotherstudentg1->id, array(
+            'weight' => 3,
+            'grade' => 95,
+        ));
+
+        $this->setUser($this->student);
+        $data = array(
+            array('name' => 'feedbackreviewer', 'value' => 'The feedback'),
+            array('name' => 'feedbackreviewerformat', 'value' => FORMAT_MOODLE),
+            array('name' => 'weight', 'value' => 25),
+            array('name' => 'gradinggradeover', 'value' => 50),
+        );
+        $this->expectException('moodle_exception');
+        mod_workshop_external::evaluate_assessment($assessmentid, $data);
+    }
 }
