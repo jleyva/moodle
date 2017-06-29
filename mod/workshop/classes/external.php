@@ -1037,6 +1037,7 @@ class mod_workshop_external extends external_api {
         global $USER;
         static $canviewallassessments = null;
         static $canviewreviewers = null;
+        static $canoverridegrades = null;
 
         // Remove all the properties that does not belong to the assessment table.
         $properties = assessment_exporter::properties_definition();
@@ -1052,6 +1053,9 @@ class mod_workshop_external extends external_api {
         if (is_null($canviewreviewers)) {
             $canviewreviewers = has_capability('mod/workshop:viewreviewernames', $workshop->context);
         }
+        if (is_null($canoverridegrades)) {
+            $canoverridegrades = has_capability('mod/workshop:overridegrades', $workshop->context);
+        }
 
         $isreviewer = $assessment->reviewerid == $USER->id;
 
@@ -1061,7 +1065,7 @@ class mod_workshop_external extends external_api {
         }
 
         // Remove the feedback for the reviewer if the feedback is not closed or if we don't have enough permissions to see it.
-        if ($workshop->phase != workshop::PHASE_CLOSED || !($isreviewer || $canviewallassessments)) {
+        if (!$canoverridegrades && ($workshop->phase != workshop::PHASE_CLOSED || !$isreviewer)) {
             // Remove all the feedback information (all the optional fields).
             foreach ($properties as $attribute => $settings) {
                 if (!empty($settings['optional'])) {
