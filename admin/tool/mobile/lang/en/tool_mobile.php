@@ -37,8 +37,9 @@ mm.user.student|Aprendiz|es
 </pre>
 For a complete list of string identifiers, see the documentation.';
 $string['custommenuitems'] = 'Custom menu items';
-$string['custommenuitems_desc'] = 'Additional items can be added to the app\'s main menu by specifying them here. Enter each custom menu item on a new line with format: item text, link URL, link-opening method (inappbrowser, browser or embedded) and language code (optional, for displaying the item to users of the specified language only), separated by pipe characters. For example:
+$string['custommenuitems_desc'] = 'Additional items can be added to the app\'s main menu by specifying them here. Enter each custom menu item on a new line with format: item text, link URL, link-opening method (app, inappbrowser, browser or embedded) and language code (optional, for displaying the item to users of the specified language only), separated by pipe characters. For example:
 <pre>
+Welcome video | https://currentsite.xyz/mod/resource/view.php?id=14 | app | en
 App\'s help | https://someurl.xyz/help | inappbrowser | en
 Visit our SIS | https://someurl.xyz | browser | en
 My grades | https://someurl.xyz/local/mygrades/index.php | embedded | en
