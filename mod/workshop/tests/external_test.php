@@ -1324,9 +1324,11 @@ class mod_workshop_external_testcase extends externallib_advanced_testcase {
 
         // Switch to assessment phase.
         $DB->set_field('workshop', 'phase', workshop::PHASE_ASSESSMENT, array('id' => $this->workshop->id));
+        // Teachers need to be able to view assessments.
         $this->setUser($this->teacher);
-        $this->setExpectedException('moodle_exception');
-        mod_workshop_external::get_assessment_form_definition($assessmentid);   // Teachers can't add/edit assessments.
+        $result = mod_workshop_external::get_assessment_form_definition($assessmentid);
+        $result = external_api::clean_returnvalue(mod_workshop_external::get_assessment_form_definition_returns(), $result);
+        $this->assertEquals(4, $result['dimenssionscount']);
     }
 
     /**
@@ -1340,9 +1342,11 @@ class mod_workshop_external_testcase extends externallib_advanced_testcase {
 
         $workshop = new workshop($this->workshop, $this->cm, $this->course);
         $submission = $workshop->get_submission_by_id($submissionid);
-        $assessmentid = $workshop->add_allocation($submission, $this->student->id);
+        $assessmentid = $workshop->add_allocation($submission, $this->anotherstudentg1->id);
 
+        $DB->set_field('workshop', 'phase', workshop::PHASE_EVALUATION, array('id' => $this->workshop->id));
         $this->setUser($this->student);
+        // Since we are not reviewers we can't see the assessment until the workshop is closed.
         $this->setExpectedException('moodle_exception');
         mod_workshop_external::get_assessment_form_definition($assessmentid);
     }
