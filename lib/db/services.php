@@ -605,6 +605,7 @@ $functions = array(
         'description' => 'Return a fragment for inclusion, such as a JavaScript page.',
         'type' => 'read',
         'ajax' => true,
+        'services' => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
     ),
     'core_get_string' => array(
         'classname' => 'core_external',
