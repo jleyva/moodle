@@ -177,6 +177,9 @@ class api {
             'langmenu' => $CFG->langmenu,
             'langlist' => $CFG->langlist,
             'locale' => $CFG->locale,
+            'tool_mobile_iosappid' => clean_param(get_config('tool_mobile', 'iosappid'), PARAM_ALPHANUM),
+            'tool_mobile_androidappid' => clean_param(get_config('tool_mobile', 'androidappid'), PARAM_NOTAGS),
+            'tool_mobile_setuplink' => clean_param(get_config('tool_mobile', 'setuplink'), PARAM_URL),
         );
 
         $typeoflogin = get_config('tool_mobile', 'typeoflogin');
@@ -360,6 +363,7 @@ class api {
         }
 
         $features = array(
+            'NoDelegate_OfficialApp' => new lang_string('officialapp', 'tool_mobile'),
             'NoDelegate_CoreOffline' => new lang_string('offlineuse', 'tool_mobile'),
             '$mmLoginEmailSignup' => new lang_string('startsignup'),
             "$mainmenu" => array(

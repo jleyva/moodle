@@ -94,6 +94,9 @@ class tool_mobile_external_testcase extends externallib_advanced_testcase {
             'langmenu' => $CFG->langmenu,
             'langlist' => $CFG->langlist,
             'locale' => $CFG->locale,
+            'tool_mobile_iosappid' => '633359593',
+            'tool_mobile_androidappid' => 'com.moodle.moodlemobile',
+            'tool_mobile_setuplink' => 'https://download.moodle.org/mobile',
             'warnings' => array()
         );
         $this->assertEquals($expected, $result);

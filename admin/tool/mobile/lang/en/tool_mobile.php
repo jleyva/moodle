@@ -83,6 +83,7 @@ $string['mobilecssurl'] = 'CSS';
 $string['mobilefeatures'] = 'Mobile features';
 $string['mobilenotificationsdisabledwarning'] = 'Mobile notifications are not enabled. They should be enabled in Manage message outputs.';
 $string['mobilesettings'] = 'Mobile settings';
+$string['officialapp'] = 'Official app';
 $string['offlineuse'] = 'Offline use';
 $string['pluginname'] = 'Moodle app tools';
 $string['pluginnotenabledorconfigured'] = 'Plugin not enabled or configured.';
