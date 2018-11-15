@@ -54,6 +54,7 @@ class gradereport_user_externallib_testcase extends externallib_advanced_testcas
         $studentrole = $DB->get_record('role', array('shortname' => 'student'));
         $student1 = $this->getDataGenerator()->create_user();
         $this->getDataGenerator()->enrol_user($student1->id, $course->id, $studentrole->id);
+        $student1context = context_user::instance($student1->id);
 
         $student2 = $this->getDataGenerator()->create_user();
         $this->getDataGenerator()->enrol_user($student2->id, $course->id, $studentrole->id);
@@ -76,7 +77,21 @@ class gradereport_user_externallib_testcase extends externallib_advanced_testcas
         $modcontext = get_coursemodule_from_instance('assign', $assignment->id, $course->id);
         $assignment->cmidnumber = $modcontext->id;
 
-        $student1grade = array('userid' => $student1->id, 'rawgrade' => $s1grade);
+        // Create some feedback files.
+        $this->setUser($student1);
+        $extensions = array('png', 'ogg', 'mp4');
+        $draftitemid = file_get_unused_draft_itemid();;
+        foreach ($extensions as $key => $extension) {
+            // Add actual file there.
+            $filerecord = array('component' => 'user', 'filearea' => 'draft',
+                    'contextid' => $student1context->id, 'itemid' => $draftitemid,
+                    'filename' => 'resource' . $key . '.' . $extension, 'filepath' => '/');
+            $fs = get_file_storage();
+            $fs->create_file_from_string($filerecord, 'Test resource ' . $key . ' file');
+        }
+
+        $student1grade = array('userid' => $student1->id, 'rawgrade' => $s1grade, 'feedback' => 'some feedback',
+            'feedbackfiles' => $filerecord);
         $student2grade = array('userid' => $student2->id, 'rawgrade' => $s2grade);
         $studentgrades = array($student1->id => $student1grade, $student2->id => $student2grade);
         assign_grade_item_update($assignment, $studentgrades);
@@ -266,7 +281,8 @@ class gradereport_user_externallib_testcase extends externallib_advanced_testcas
         $this->assertEquals(100, $studentgrades['usergrades'][0]['gradeitems'][0]['grademax']);
         $this->assertEquals('0&ndash;100', $studentgrades['usergrades'][0]['gradeitems'][0]['rangeformatted']);
         $this->assertEquals('80.00 %', $studentgrades['usergrades'][0]['gradeitems'][0]['percentageformatted']);
-        $this->assertEmpty($studentgrades['usergrades'][0]['gradeitems'][0]['feedback']);
+        $this->assertEquals('some feedback', $studentgrades['usergrades'][0]['gradeitems'][0]['feedback']);
+        $this->assertCount(3, $studentgrades['usergrades'][0]['gradeitems'][0]['feedbackfiles']);
         $this->assertFalse($studentgrades['usergrades'][0]['gradeitems'][0]['gradehiddenbydate']);
         $this->assertFalse($studentgrades['usergrades'][0]['gradeitems'][0]['gradeneedsupdate']);
         $this->assertFalse($studentgrades['usergrades'][0]['gradeitems'][0]['gradeishidden']);
@@ -362,7 +378,8 @@ class gradereport_user_externallib_testcase extends externallib_advanced_testcas
         $this->assertEquals(100, $studentgrades['usergrades'][0]['gradeitems'][0]['grademax']);
         $this->assertEquals('0&ndash;100', $studentgrades['usergrades'][0]['gradeitems'][0]['rangeformatted']);
         $this->assertEquals('80.00 %', $studentgrades['usergrades'][0]['gradeitems'][0]['percentageformatted']);
-        $this->assertEmpty($studentgrades['usergrades'][0]['gradeitems'][0]['feedback']);
+        $this->assertEquals('some feedback', $studentgrades['usergrades'][0]['gradeitems'][0]['feedback']);
+        $this->assertCount(3, $studentgrades['usergrades'][0]['gradeitems'][0]['feedbackfiles']);
         $this->assertFalse($studentgrades['usergrades'][0]['gradeitems'][0]['gradehiddenbydate']);
         $this->assertFalse($studentgrades['usergrades'][0]['gradeitems'][0]['gradeneedsupdate']);
         $this->assertFalse($studentgrades['usergrades'][0]['gradeitems'][0]['gradeishidden']);
