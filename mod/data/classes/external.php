@@ -100,6 +100,15 @@ class mod_data_external extends external_api {
                 // Remove fields added by get_all_instances_in_courses.
                 unset($database->coursemodule, $database->section, $database->visible, $database->groupmode, $database->groupingid);
 
+                // Pre-fill database templates.
+                $templates = array('singletemplate', 'listtemplate', 'listtemplateheader', 'listtemplatefooter', 'addtemplate',
+                    'rsstemplate', 'rsstitletemplate', 'csstemplate', 'jstemplate', 'asearchtemplate');
+                foreach ($templates as $template) {
+                    if (empty($database->{$template})) {
+                        $database->{$template} = data_generate_default_template($database, $template, 0, false, false);
+                    }
+                }
+
                 // This information should be only available if the user can see the database entries.
                 if (!has_capability('mod/data:viewentry', $context)) {
                     $fields = array('comments', 'timeavailablefrom', 'timeavailableto', 'timeviewfrom',

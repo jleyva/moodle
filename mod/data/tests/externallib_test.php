@@ -143,6 +143,15 @@ class mod_data_external_testcase extends externallib_advanced_testcase {
         $record->course = $course1->id;
         $database1 = self::getDataGenerator()->create_module('data', $record);
 
+        // Include one field to database1 so templates will be generated.
+        $generator = $this->getDataGenerator()->get_plugin_generator('mod_data');
+        $record = new StdClass();
+        $record->name = 'numberfield';
+        $record->type = 'number';
+        $record->required = 1;
+
+        $generator->create_field($record, $database1);
+
         // Second database.
         $record = new stdClass();
         $record->introformat = FORMAT_HTML;
@@ -193,6 +202,15 @@ class mod_data_external_testcase extends externallib_advanced_testcase {
         }
         $expected1['comments'] = (bool) $expected1['comments'];
         $expected2['comments'] = (bool) $expected2['comments'];
+
+        // Pre-fill database templates only for database1 since it has a field.
+        $templates = array('singletemplate', 'listtemplate', 'listtemplateheader', 'listtemplatefooter', 'addtemplate',
+            'rsstemplate', 'rsstitletemplate', 'csstemplate', 'jstemplate', 'asearchtemplate');
+        foreach ($templates as $template) {
+            if (empty($expected1[$template])) {
+                $expected1[$template] = data_generate_default_template($database1, $template, 0, false, false);
+            }
+        }
 
         $expecteddatabases = array();
         $expecteddatabases[] = $expected2;

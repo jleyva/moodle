@@ -1,6 +1,9 @@
 This files describes API changes in /mod/data - plugins,
 information provided here is intended especially for developers.
 
+=== 3-7 ===
+* External function get_databases_by_courses now return the default templates (when there is at least one field created).
+
 === 3.4 ===
 * External function mod_data_external::search_entries() now returns the maxcount field: Total count of records that the user could
     see in the database (if all the search criterias were removed).
