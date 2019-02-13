@@ -123,6 +123,7 @@ class core_comment_externallib_testcase extends externallib_advanced_testcase {
 
         $this->assertCount(0, $result['warnings']);
         $this->assertCount(2, $result['comments']);
+        $this->assertTrue($result['canpost']);
 
         $this->assertEquals($user->id, $result['comments'][0]['userid']);
         $this->assertEquals($user->id, $result['comments'][1]['userid']);

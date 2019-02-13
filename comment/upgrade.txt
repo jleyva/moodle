@@ -1,0 +1,7 @@
+This files describes API changes in /comment/ information provided here is intended
+especially for developers.
+
+=== 3.7 ===
+* The Webservice core_comment_get_comments now indicates if the current user can post comments in the requested area.
+
+

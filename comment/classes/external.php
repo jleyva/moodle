@@ -115,6 +115,7 @@ class core_comment_external extends external_api {
 
         $results = array(
             'comments' => $comments,
+            'canpost'  => $commentobject->can_post(),
             'warnings' => $warnings
         );
         return $results;
@@ -146,6 +147,7 @@ class core_comment_external extends external_api {
                         ), 'comment'
                     ), 'List of comments'
                 ),
+                'canpost' => new external_value(PARAM_BOOL, 'Whether the user can post in this comment area.', VALUE_OPTIONAL),
                 'warnings' => new external_warnings()
             )
         );
