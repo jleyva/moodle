@@ -45,34 +45,25 @@ class core_comment_externallib_testcase extends externallib_advanced_testcase {
      * Tests set up
      */
     protected function setUp() {
-        global $CFG;
+        global $CFG, $DB;
 
         require_once($CFG->dirroot . '/comment/lib.php');
-    }
-
-    /**
-     * Test get_comments
-     */
-    public function test_get_comments() {
-        global $DB, $CFG;
-
-        $this->resetAfterTest(true);
 
         $CFG->usecomments = true;
 
-        $user = $this->getDataGenerator()->create_user();
-        $course = $this->getDataGenerator()->create_course(array('enablecomment' => 1));
+        $this->student = $this->getDataGenerator()->create_user();
+        $this->course = $this->getDataGenerator()->create_course(array('enablecomment' => 1));
         $studentrole = $DB->get_record('role', array('shortname' => 'student'));
-        $this->getDataGenerator()->enrol_user($user->id, $course->id, $studentrole->id);
+        $this->getDataGenerator()->enrol_user($this->student->id, $this->course->id, $studentrole->id);
 
         $record = new stdClass();
-        $record->course = $course->id;
+        $record->course = $this->course->id;
         $record->name = "Mod data  test";
         $record->intro = "Some intro of some sort";
         $record->comments = 1;
 
-        $module = $this->getDataGenerator()->create_module('data', $record);
-        $field = data_get_field_new('text', $module);
+        $this->module = $this->getDataGenerator()->create_module('data', $record);
+        $field = data_get_field_new('text', $this->module);
 
         $fielddetail = new stdClass();
         $fielddetail->name = 'Name';
@@ -80,28 +71,37 @@ class core_comment_externallib_testcase extends externallib_advanced_testcase {
 
         $field->define_field($fielddetail);
         $field->insert_field();
-        $recordid = data_add_record($module);
+        $this->recordid = data_add_record($this->module);
 
         $datacontent = array();
         $datacontent['fieldid'] = $field->field->id;
-        $datacontent['recordid'] = $recordid;
+        $datacontent['recordid'] = $this->recordid;
         $datacontent['content'] = 'Asterix';
 
         $contentid = $DB->insert_record('data_content', $datacontent);
-        $cm = get_coursemodule_from_instance('data', $module->id, $course->id);
+        $this->cm = get_coursemodule_from_instance('data', $this->module->id, $this->course->id);
 
-        $context = context_module::instance($module->cmid);
+        $this->context = context_module::instance($this->module->cmid);
+    }
 
-        $this->setUser($user);
+    /**
+     * Test get_comments
+     */
+    public function test_get_comments() {
+        global $DB;
+
+        $this->resetAfterTest(true);
+
+        $this->setUser($this->student);
 
         // We need to add the comments manually, the comment API uses the global OUTPUT and this is going to make the WS to fail.
         $newcmt = new stdClass;
-        $newcmt->contextid    = $context->id;
+        $newcmt->contextid    = $this->context->id;
         $newcmt->commentarea  = 'database_entry';
-        $newcmt->itemid       = $recordid;
+        $newcmt->itemid       = $this->recordid;
         $newcmt->content      = 'New comment';
         $newcmt->format       = 0;
-        $newcmt->userid       = $user->id;
+        $newcmt->userid       = $this->student->id;
         $newcmt->timecreated  = time();
         $cmtid1 = $DB->insert_record('comments', $newcmt);
 
@@ -110,9 +110,9 @@ class core_comment_externallib_testcase extends externallib_advanced_testcase {
         $cmtid2 = $DB->insert_record('comments', $newcmt);
 
         $contextlevel = 'module';
-        $instanceid = $cm->id;
+        $instanceid = $this->cm->id;
         $component = 'mod_data';
-        $itemid = $recordid;
+        $itemid = $this->recordid;
         $area = 'database_entry';
         $page = 0;
 
@@ -125,10 +125,73 @@ class core_comment_externallib_testcase extends externallib_advanced_testcase {
         $this->assertCount(2, $result['comments']);
         $this->assertTrue($result['canpost']);
 
-        $this->assertEquals($user->id, $result['comments'][0]['userid']);
-        $this->assertEquals($user->id, $result['comments'][1]['userid']);
+        $this->assertEquals($this->student->id, $result['comments'][0]['userid']);
+        $this->assertEquals($this->student->id, $result['comments'][1]['userid']);
 
         $this->assertEquals($cmtid2, $result['comments'][0]['id']);
         $this->assertEquals($cmtid1, $result['comments'][1]['id']);
+    }
+
+    /**
+     * Test add_comment not enabled site level
+     */
+    public function test_add_comment_not_enabled_site_level() {
+        global $CFG;
+        $this->resetAfterTest(true);
+
+        $CFG->usecomments = false;
+        $this->setUser($this->student);
+        $this->expectException(comment_exception::class);
+        core_comment_external::add_comment('module', $this->cm->id, 'mod_data', 'abc', $this->recordid, 'database_entry');
+    }
+
+    /**
+     * Test add_comment not enabled module level
+     */
+    public function test_add_comment_not_enabled_module_level() {
+        global $DB;
+        $this->resetAfterTest(true);
+
+        $DB->set_field('data', 'comments', 0, array('id' => $this->module->id));
+        $this->setUser($this->student);
+        $this->expectException(comment_exception::class);
+        core_comment_external::add_comment('module', $this->cm->id, 'mod_data', 'abc', $this->recordid, 'database_entry');
+    }
+
+    /**
+     * Test add_comment
+     */
+    public function test_add_comment() {
+        global $DB;
+        $this->resetAfterTest(true);
+        $this->setUser($this->student);
+
+        $content = 'abc';
+        $result = external_api::clean_returnvalue(
+            core_comment_external::add_comment_returns(),
+            core_comment_external::add_comment('module', $this->cm->id, 'mod_data', $content, $this->recordid, 'database_entry')
+        );
+        $this->assertNotEquals(0, $result['commentid']);
+
+        $comments = external_api::clean_returnvalue(
+            core_comment_external::get_comments_returns(),
+            core_comment_external::get_comments('module', $this->cm->id, 'mod_data', $this->recordid, 'database_entry')
+        );
+        $this->assertEquals($result['commentid'], $comments['comments'][0]['id']);
+        $this->assertContains($content, $comments['comments'][0]['content']);
+        $this->assertEquals($this->student->id, $comments['comments'][0]['userid']);
+    }
+
+    /**
+     * Test add_comment invalid area
+     */
+    public function test_add_comment_invalid_area() {
+        global $DB;
+        $this->resetAfterTest(true);
+        $this->setUser($this->student);
+
+        $content = 'abc';
+        $this->expectException(comment_exception::class);
+        core_comment_external::add_comment('module', $this->cm->id, 'mod_data', $content, $this->recordid, 'bad_area');
     }
 }

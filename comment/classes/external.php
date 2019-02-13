@@ -152,4 +152,106 @@ class core_comment_external extends external_api {
             )
         );
     }
+
+    /**
+     * Returns description of method parameters
+     *
+     * @return external_function_parameters
+     * @since Moodle 3.7
+     */
+    public static function add_comment_parameters() {
+
+        return new external_function_parameters(
+            array(
+                'contextlevel' => new external_value(PARAM_ALPHA, 'contextlevel system, course, user...'),
+                'instanceid'   => new external_value(PARAM_INT, 'the Instance id of item associated with the context level'),
+                'component'    => new external_value(PARAM_COMPONENT, 'component'),
+                'content'    => new external_value(PARAM_RAW, 'component'),
+                'itemid'       => new external_value(PARAM_INT, 'associated id'),
+                'area'         => new external_value(PARAM_AREA, 'string comment area', VALUE_DEFAULT, ''),
+            )
+        );
+    }
+
+    /**
+     * Adds a comment.
+     *
+     * @param string $contextlevel ('system, course, user', etc..)
+     * @param int $instanceid context instance id
+     * @param string $component the name of the component where the comment goes
+     * @param string $content the comment content
+     * @param int $itemid the item id
+     * @param string $area comment area
+     * @throws comment_exception
+     *
+     * @return array new comment id and warnings
+     * @since Moodle 3.7
+     */
+    public static function add_comment($contextlevel, $instanceid, $component, $content, $itemid, $area = '') {
+        global $CFG, $SITE;
+
+        $params = self::validate_parameters(self::add_comment_parameters(),
+            array(
+                'contextlevel' => $contextlevel,
+                'instanceid'   => $instanceid,
+                'component'    => $component,
+                'content'      => $content,
+                'itemid'       => $itemid,
+                'area'         => $area,
+            )
+        );
+
+        if (empty($CFG->usecomments)) {
+            throw new comment_exception('commentsnotenabled', 'moodle');
+        }
+
+        $context = self::get_context_from_params($params);
+        self::validate_context($context);
+
+        list($context, $course, $cm) = get_context_info_array($context->id);
+        if ( $context->id == SYSCONTEXTID ) {
+            $course = $SITE;
+        }
+
+        // Initilising comment object.
+        $args = new stdClass;
+        $args->context   = $context;
+        $args->course    = $course;
+        $args->cm        = $cm;
+        $args->component = $params['component'];
+        $args->itemid    = $params['itemid'];
+        $args->area      = $params['area'];
+
+        $manager = new comment($args);
+        if (!$manager->can_post()) {
+            throw new comment_exception('nopermissiontocomment');
+        }
+
+        $results = array(
+            'warnings' => array(),
+            'commentid' => 0,
+        );
+
+        $newcomment = $manager->add($params['content']);
+        if (!empty($newcomment) && is_object($newcomment)) {
+            $results['commentid'] = $newcomment->id;
+        }
+
+        return $results;
+    }
+
+    /**
+     * Returns description of method result value
+     *
+     * @return external_description
+     * @since Moodle 3.7
+     */
+    public static function add_comment_returns() {
+        return new external_single_structure(
+            array(
+                'commentid' => new external_value(PARAM_INT, 'New comment id. 0 if failure.'),
+                'warnings' => new external_warnings()
+            )
+        );
+    }
 }
