@@ -53,8 +53,8 @@ class core_comment_externallib_testcase extends externallib_advanced_testcase {
 
         $this->student = $this->getDataGenerator()->create_user();
         $this->course = $this->getDataGenerator()->create_course(array('enablecomment' => 1));
-        $studentrole = $DB->get_record('role', array('shortname' => 'student'));
-        $this->getDataGenerator()->enrol_user($this->student->id, $this->course->id, $studentrole->id);
+        $this->studentrole = $DB->get_record('role', array('shortname' => 'student'));
+        $this->getDataGenerator()->enrol_user($this->student->id, $this->course->id, $this->studentrole->id);
 
         $record = new stdClass();
         $record->course = $this->course->id;
@@ -193,5 +193,91 @@ class core_comment_externallib_testcase extends externallib_advanced_testcase {
         $content = 'abc';
         $this->expectException(comment_exception::class);
         core_comment_external::add_comment('module', $this->cm->id, 'mod_data', $content, $this->recordid, 'bad_area');
+    }
+
+    /**
+     * Test delete_comment invalid comment.
+     */
+    public function test_delete_comment_invalid_comment() {
+        global $DB;
+        $this->resetAfterTest(true);
+        $this->setUser($this->student);
+
+        $this->expectException(moodle_exception::class);
+        core_comment_external::delete_comment(-1);
+    }
+
+    /**
+     * Test delete_comment own user.
+     */
+    public function test_delete_comment_own_user() {
+        global $DB;
+        $this->resetAfterTest(true);
+        $this->setUser($this->student);
+
+        $content = 'abc';
+        $result = external_api::clean_returnvalue(
+            core_comment_external::add_comment_returns(),
+            core_comment_external::add_comment('module', $this->cm->id, 'mod_data', $content, $this->recordid, 'database_entry')
+        );
+        $this->assertNotEquals(0, $result['commentid']);
+
+        $result = external_api::clean_returnvalue(
+            core_comment_external::delete_comment_returns(),
+            core_comment_external::delete_comment($result['commentid'])
+        );
+        $this->assertTrue($result['deleted']);
+    }
+
+    /**
+     * Test delete_comment other student.
+     */
+    public function test_delete_comment_other_student() {
+        global $DB;
+        $this->resetAfterTest(true);
+        $this->setUser($this->student);
+
+        $content = 'abc';
+        $result = external_api::clean_returnvalue(
+            core_comment_external::add_comment_returns(),
+            core_comment_external::add_comment('module', $this->cm->id, 'mod_data', $content, $this->recordid, 'database_entry')
+        );
+        $this->assertNotEquals(0, $result['commentid']);
+
+        // Create other student.
+        $otherstudent = $this->getDataGenerator()->create_user();
+        $this->getDataGenerator()->enrol_user($otherstudent->id, $this->course->id, $this->studentrole->id);
+
+        $this->setUser($otherstudent);
+        $this->expectException(comment_exception::class);
+        core_comment_external::delete_comment($result['commentid']);
+    }
+
+    /**
+     * Test delete_comment as teacher.
+     */
+    public function test_delete_comment_as_teacher() {
+        global $DB;
+        $this->resetAfterTest(true);
+        $this->setUser($this->student);
+
+        $content = 'abc';
+        $result = external_api::clean_returnvalue(
+            core_comment_external::add_comment_returns(),
+            core_comment_external::add_comment('module', $this->cm->id, 'mod_data', $content, $this->recordid, 'database_entry')
+        );
+        $this->assertNotEquals(0, $result['commentid']);
+
+        // Create teacher.
+        $teacher = $this->getDataGenerator()->create_user();
+        $teacherrole = $DB->get_record('role', array('shortname' => 'editingteacher'));
+        $this->getDataGenerator()->enrol_user($teacher->id, $this->course->id, $teacherrole->id);
+
+        $this->setUser($teacher);
+        $result = external_api::clean_returnvalue(
+            core_comment_external::delete_comment_returns(),
+            core_comment_external::delete_comment($result['commentid'])
+        );
+        $this->assertTrue($result['deleted']);
     }
 }

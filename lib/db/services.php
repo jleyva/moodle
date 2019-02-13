@@ -296,6 +296,13 @@ $functions = array(
         'type' => 'write',
         'services' => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
     ),
+    'core_comment_delete_comment' => array(
+        'classname' => 'core_comment_external',
+        'methodname' => 'delete_comment',
+        'description' => 'Deletes a comment.',
+        'type' => 'write',
+        'services' => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
+    ),
     'core_completion_get_activities_completion_status' => array(
         'classname' => 'core_completion_external',
         'methodname' => 'get_activities_completion_status',

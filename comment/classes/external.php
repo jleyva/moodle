@@ -213,7 +213,7 @@ class core_comment_external extends external_api {
             $course = $SITE;
         }
 
-        // Initilising comment object.
+        // Initialising comment object.
         $args = new stdClass;
         $args->context   = $context;
         $args->course    = $course;
@@ -250,6 +250,90 @@ class core_comment_external extends external_api {
         return new external_single_structure(
             array(
                 'commentid' => new external_value(PARAM_INT, 'New comment id. 0 if failure.'),
+                'warnings' => new external_warnings()
+            )
+        );
+    }
+
+    /**
+     * Returns description of method parameters
+     *
+     * @return external_function_parameters
+     * @since Moodle 3.7
+     */
+    public static function delete_comment_parameters() {
+
+        return new external_function_parameters(
+            array(
+                'commentid' => new external_value(PARAM_INT, 'Comment to be deleted.'),
+            )
+        );
+    }
+
+    /**
+     * Deletes a comment.
+     *
+     * @param int $commentid comment id to be deleted
+     * @throws comment_exception
+     *
+     * @return array success status and warnings
+     * @since Moodle 3.7
+     */
+    public static function delete_comment($commentid) {
+        global $CFG, $DB, $USER;
+
+        $params = self::validate_parameters(self::delete_comment_parameters(),
+            array(
+                'commentid' => $commentid,
+            )
+        );
+
+        if (empty($CFG->usecomments)) {
+            throw new comment_exception('commentsnotenabled', 'moodle');
+        }
+
+        $commentid = $params['commentid'];
+        $commentrecord = $DB->get_record('comments', array('id' => $commentid), '*', MUST_EXIST);
+        list($context, $course, $cm) = get_context_info_array($commentrecord->contextid);
+        if ( $context->id == SYSCONTEXTID ) {
+            $course = $SITE;
+        }
+        self::validate_context($context);
+
+        // Initialising comment object.
+        $args = new stdClass;
+        $args->context   = $context;
+        $args->course    = $course;
+        $args->cm        = $cm;
+        $args->component = $commentrecord->component;
+        $args->itemid    = $commentrecord->itemid;
+        $args->area      = $commentrecord->commentarea;
+
+        $manager = new comment($args);
+
+        $result = array(
+            'deleted' => false,
+            'warnings' => array(),
+        );
+        if ($manager->can_delete($commentid) || $commentrecord->userid == $USER->id) {
+             $result['deleted'] = $manager->delete($commentid);
+        } else {
+            throw new comment_exception('nopermissiontodelentry');
+        }
+
+        return $result;
+    }
+
+    /**
+     * Returns description of method result value
+     *
+     * @return external_description
+     * @since Moodle 3.7
+     */
+    public static function delete_comment_returns() {
+        return new external_single_structure(
+            array(
+                'deleted' => new external_value(PARAM_BOOL, 'True if deleted, false otherwise.'),
                 'warnings' => new external_warnings()
             )
         );
