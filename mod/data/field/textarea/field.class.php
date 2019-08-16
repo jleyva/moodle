@@ -197,7 +197,7 @@ class data_field_textarea extends data_field_base {
 
 
     function update_content($recordid, $value, $name='') {
-        global $DB;
+        global $DB, $SESSION;
 
         $content = new stdClass();
         $content->fieldid = $this->field->id;
@@ -224,9 +224,18 @@ class data_field_textarea extends data_field_base {
             }
         }
         if (!empty($content->content)) {
-            $draftitemid = file_get_submitted_draft_itemid('field_'. $this->field->id. '_itemid');
             $options = $this->get_options();
-            $content->content = file_save_draft_area_files($draftitemid, $this->context->id, 'mod_data', 'content', $content->id, $options, $content->content);
+            if (isset($SESSION->mod_data_wsdata)) {
+                // Hack for Web Services, we need to retrieve the draftitemid from SESSION.
+                // Function file_get_submitted_draft_itemid try to retrieve it from the $_REQUEST parameters :(.
+                $draftitemid = $SESSION->mod_data_wsdata->{'field_'. $this->field->id. '_itemid'};
+                // No need to rewrite content, already done.
+                file_save_draft_area_files($draftitemid, $this->context->id, 'mod_data', 'content', $content->id, $options);
+            } else {
+                $draftitemid = file_get_submitted_draft_itemid('field_'. $this->field->id. '_itemid');
+                $content->content = file_save_draft_area_files($draftitemid, $this->context->id, 'mod_data', 'content',
+                    $content->id, $options, $content->content);
+            }
         }
         $rv = $DB->update_record('data_content', $content);
         return $rv;

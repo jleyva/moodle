@@ -1129,15 +1129,29 @@ class mod_data_external_testcase extends externallib_advanced_testcase {
                     $value = 'some text';
                     break;
                 case 'textarea':
+                    $textareafieldid = $field->id;
                     $newentrydata[] = [
                         'fieldid' => $field->id,
                         'subfield' => 'content1',
                         'value' => json_encode(FORMAT_MOODLE)
                     ];
+                    // Create fake image in the textarea.
+                    $draftidfile = file_get_unused_draft_itemid();
+                    $usercontext = context_user::instance($this->student1->id);
+                    $filerecord = array(
+                        'contextid' => $usercontext->id,
+                        'component' => 'user',
+                        'filearea'  => 'draft',
+                        'itemid'    => $draftidfile,
+                        'filepath'  => '/',
+                        'filename'  => 'fakeimage.png',
+                    );
+                    $fs = get_file_storage();
+                    $fs->create_file_from_string($filerecord, 'img contents');
                     $newentrydata[] = [
                         'fieldid' => $field->id,
                         'subfield' => 'itemid',
-                        'value' => json_encode(0)
+                        'value' => json_encode($draftidfile)
                     ];
                     $value = 'more text';
                     break;
@@ -1158,6 +1172,10 @@ class mod_data_external_testcase extends externallib_advanced_testcase {
         $this->assertTrue($result['updated']);
         $this->assertCount(0, $result['generalnotifications']);
         $this->assertCount(0, $result['fieldnotifications']);
+        // Check files within the text area.
+        $files = external_util::get_area_files($this->context->id, 'mod_data', 'content');
+        $this->assertCount(1, $files);
+        $this->assertEquals('fakeimage.png', $files[0]['filename']);
 
         $result = mod_data_external::get_entry($entry11, true);
         $result = external_api::clean_returnvalue(mod_data_external::get_entry_returns(), $result);
