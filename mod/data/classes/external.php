@@ -1093,7 +1093,7 @@ class mod_data_external extends external_api {
      * @throws moodle_exception
      */
     public static function update_entry($entryid, $data) {
-        global $DB;
+        global $DB, $SESSION;
 
         $params = array('entryid' => $entryid, 'data' => $data);
         $params = self::validate_parameters(self::update_entry_parameters(), $params);
@@ -1117,6 +1117,9 @@ class mod_data_external extends external_api {
             // We ask for JSON encoded values because of multiple choice forms or checkboxes that use array parameters.
             $datarecord->{'field_' . $data['fieldid'] . $subfield} = json_decode($data['value']);
         }
+        // Hack, we need to store this for the textarea field update_content method.
+        $SESSION->mod_data_wsdata = $datarecord;
+
         // Validate to ensure that enough data was submitted.
         $fields = $DB->get_records('data_fields', array('dataid' => $database->id));
         $processeddata = data_process_submission($database, $fields, $datarecord);
@@ -1139,6 +1142,7 @@ class mod_data_external extends external_api {
             $updated = true;
         }
 
+        unset($SESSION->mod_data_wsdata);
         $result = array(
             'updated' => $updated,
             'generalnotifications' => $processeddata->generalnotifications,
