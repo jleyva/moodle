@@ -2451,4 +2451,80 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $this->assertTrue($result['post']['hasparent']);
         $this->assertEquals($post->message, $result['post']['message']);
     }
+
+    /**
+     * Test prepare_draft_area_for_post a different user post.
+     */
+    public function test_prepare_draft_area_for_post() {
+        global $DB;
+        $this->resetAfterTest(true);
+        // Setup test data.
+        $course = $this->getDataGenerator()->create_course();
+        $forum = $this->getDataGenerator()->create_module('forum', array('course' => $course->id));
+        $user = $this->getDataGenerator()->create_user();
+        $role = $DB->get_record('role', array('shortname' => 'student'), '*', MUST_EXIST);
+        self::getDataGenerator()->enrol_user($user->id, $course->id, $role->id);
+        // Add a discussion.
+        $record = array();
+        $record['course'] = $course->id;
+        $record['forum'] = $forum->id;
+        $record['userid'] = $user->id;
+        $discussion = $this->getDataGenerator()->get_plugin_generator('mod_forum')->create_discussion($record);
+        $parentpost = $DB->get_record('forum_posts', array('discussion' => $discussion->id));
+        // Add a post.
+        $record = new stdClass();
+        $record->course = $course->id;
+        $record->userid = $user->id;
+        $record->forum = $forum->id;
+        $record->discussion = $discussion->id;
+        $record->parent = $parentpost->id;
+        $post = $this->getDataGenerator()->get_plugin_generator('mod_forum')->create_post($record);
+
+        // Add some files only in the attachment area.
+        $filename = 'faketxt.txt';
+        // Add a fake inline image to the post.
+        $filerecordinline = array(
+            'contextid' => context_module::instance($forum->cmid)->id,
+            'component' => 'mod_forum',
+            'filearea'  => 'attachment',
+            'itemid'    => $post->id,
+            'filepath'  => '/',
+            'filename'  => $filename,
+        );
+        $fs = get_file_storage();
+        $fs->create_file_from_string($filerecordinline, 'fake txt contents.');
+
+        $this->setUser($user);
+        // Check attachment area.
+        $result = mod_forum_external::prepare_draft_area_for_post($post->id, 'attachment');
+        $result = external_api::clean_returnvalue(mod_forum_external::prepare_draft_area_for_post_returns(), $result);
+        $this->assertCount();
+        $this->assertEquals();
+        print_r($result);
+        // Check again using existing draft item id.
+        $result = mod_forum_external::prepare_draft_area_for_post($post->id, 'attachment', $result['draftitemid']);
+        $result = external_api::clean_returnvalue(mod_forum_external::prepare_draft_area_for_post_returns(), $result);
+        $this->assertEquals();
+        $this->assertEquals();
+print_r($result);
+
+        // Check editor area.
+    }
+
+    /**
+     * Test prepare_draft_area_for_post indicating draft id.
+     */
+    public function test_prepare_draft_area_for_post_indicating_draft_id() {
+        global $DB;
+        $this->resetAfterTest(true);
+    }
+
+    /**
+     * Test prepare_draft_area_for_post keeping certain files only.
+     */
+    public function test_prepare_draft_area_for_post_keeping_certain_files() {
+        global $DB;
+        $this->resetAfterTest(true);
+    }
+
 }

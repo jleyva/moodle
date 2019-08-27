@@ -2130,7 +2130,7 @@ class mod_forum_external extends external_api {
             array(
                 'postid' => new external_value(PARAM_INT, 'Post to prepare the draft area for.'),
                 'area' => new external_value(PARAM_ALPHA, 'Area to prepare: attachment or post.'),
-                'draftitemid' => new external_value(PARAM_INT, 'The draft item it to use. 0 to generate one.',
+                'draftitemid' => new external_value(PARAM_INT, 'The draft item id to use. 0 to generate one.',
                     VALUE_DEFAULT, 0),
                 'filestokeep' => new external_multiple_structure(
                     new external_single_structure(
@@ -2147,7 +2147,10 @@ class mod_forum_external extends external_api {
      * Prepares a draft area for editing a post.
      *
      * @param int $postid post to prepare the draft area for
-     * @return array of post and warnings (if any)
+     * @param string $area area to prepare attachment or post
+     * @param int $draftitemid the draft item id to use. 0 to generate a new one.
+     * @param array $filestokeep post to prepare the draft area for
+     * @return array of files in the area, the area options and the draft item id
      * @since Moodle 3.8
      * @throws moodle_exception
      */
