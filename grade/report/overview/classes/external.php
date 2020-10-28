@@ -85,7 +85,23 @@ class gradereport_overview_external extends external_api {
             // We must check if the current user can view other users grades.
             $user = core_user::get_user($userid, '*', MUST_EXIST);
             core_user::require_active_user($user);
-            require_capability('moodle/grade:viewall', $systemcontext);
+            $personalcontext = context_user::instance($userid);
+
+            $access = false;
+            if (has_capability('moodle/grade:viewall', $personalcontext)) {
+                // Ok - can view grades of this user - parent most probably.
+                $access = true;
+            } else if (has_capability('moodle/user:viewuseractivitiesreport', $personalcontext)) {
+                // Ok - can view grades of this user - parent most probably.
+                $access = true;
+            } else {
+                // Check global permissions to see grades.
+                $access = has_capability('moodle/grade:viewall', $systemcontext);
+            }
+
+            if (!$access) {
+                throw new moodle_exception('nopermissiontoviewgrades', 'error');
+            }
         }
 
         // We need the site course, and course context.
