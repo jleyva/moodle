@@ -1103,6 +1103,33 @@ class grade_report_user extends grade_report {
         );
         $event->trigger();
     }
+
+    /**
+     * Check if the user can access the report.
+     *
+     * @param  stdClass $context         course context
+     * @param  stdClass $course          course object
+     * @param  int $userid               userid
+     * @return bool true if the user can access the report
+     */
+    public static function check_access($context, $course, $userid) {
+        global $USER;
+
+        $access = false;
+        if (has_capability('moodle/grade:viewall', $context)) {
+            //ok - can view all course grades
+            $access = true;
+
+        } else if ($userid == $USER->id and has_capability('moodle/grade:view', $context) and $course->showgrades) {
+            //ok - can view own grades
+            $access = true;
+
+        } else if (has_capability('moodle/grade:viewall', context_user::instance($userid)) and $course->showgrades) {
+            // ok - can view grades of this user- parent most probably
+            $access = true;
+        }
+        return $access;
+    }
 }
 
 function grade_report_user_settings_definition(&$mform) {
@@ -1272,22 +1299,13 @@ function gradereport_user_myprofile_navigation(core_user\output\myprofile\tree $
     if ($anyreport || $iscurrentuser) {
         // Add grade hardcoded grade report if necessary.
         $gradeaccess = false;
-        $coursecontext = context_course::instance($course->id);
-        if (has_capability('moodle/grade:viewall', $coursecontext)) {
-            // Can view all course grades.
+        if ($course->showgrades && $anyreport) {
+            // Can view grades of this user - parent most probably.
             $gradeaccess = true;
-        } else if ($course->showgrades) {
-            if ($iscurrentuser && has_capability('moodle/grade:view', $coursecontext)) {
-                // Can view own grades.
-                $gradeaccess = true;
-            } else if (has_capability('moodle/grade:viewall', $usercontext)) {
-                // Can view grades of this user - parent most probably.
-                $gradeaccess = true;
-            } else if ($anyreport) {
-                // Can view grades of this user - parent most probably.
-                $gradeaccess = true;
-            }
+        } else {
+            $gradeaccess = grade_report_user::check_access($coursecontext, $course, $user->id);
         }
+
         if ($gradeaccess) {
             $url = new moodle_url('/course/user.php', array('mode' => 'grade', 'id' => $course->id, 'user' => $user->id));
             $node = new core_user\output\myprofile\node('reports', 'grade', get_string('grade'), null, $url);

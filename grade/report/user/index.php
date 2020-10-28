@@ -58,19 +58,7 @@ if (empty($userid)) {
     }
 }
 
-$access = false;
-if (has_capability('moodle/grade:viewall', $context)) {
-    //ok - can view all course grades
-    $access = true;
-
-} else if ($userid == $USER->id and has_capability('moodle/grade:view', $context) and $course->showgrades) {
-    //ok - can view own grades
-    $access = true;
-
-} else if (has_capability('moodle/grade:viewall', context_user::instance($userid)) and $course->showgrades) {
-    // ok - can view grades of this user- parent most probably
-    $access = true;
-}
+$access = grade_report_user::check_access($context, $course, $userid);
 
 if (!$access) {
     // no access to grades!

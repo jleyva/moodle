@@ -67,6 +67,7 @@ class gradereport_user_external extends external_api {
         // Function get_course internally throws an exception if the course doesn't exist.
         $course = get_course($courseid);
 
+        // THIS NEEDS TO BE REMOVED OR PLASED ELSEWHERE, OTHERWISE, PARENTS CAN'T ACCESS
         $context = context_course::instance($courseid);
         self::validate_context($context);
 
@@ -74,9 +75,11 @@ class gradereport_user_external extends external_api {
         require_capability('gradereport/user:view', $context);
 
         $user = null;
+        $access = false;
 
         if (empty($userid)) {
             require_capability('moodle/grade:viewall', $context);
+            $access = true;
         } else {
             $user = core_user::get_user($userid, '*', MUST_EXIST);
             core_user::require_active_user($user);
@@ -85,16 +88,7 @@ class gradereport_user_external extends external_api {
             if (!groups_user_groups_visible($course, $user->id)) {
                 throw new moodle_exception('notingroup');
             }
-        }
-
-        $access = false;
-
-        if (has_capability('moodle/grade:viewall', $context)) {
-            // Can view all course grades.
-            $access = true;
-        } else if ($userid == $USER->id and has_capability('moodle/grade:view', $context) and $course->showgrades) {
-            // View own grades.
-            $access = true;
+            $access = grade_report_user::check_access($context, $course, $userid);
         }
 
         if (!$access) {
