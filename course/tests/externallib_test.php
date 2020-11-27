@@ -1512,6 +1512,7 @@ class core_course_externallib_testcase extends externallib_advanced_testcase {
                 $filessize = $module['contents'][0]['filesize'] + $module['contents'][1]['filesize'] +
                     $module['contents'][2]['filesize'] + $module['contents'][3]['filesize'];
                 $this->assertEquals($filessize, $module['contentsinfo']['filessize']);
+                $this->assertEquals($module['contents'][1]['filesize'], $module['contentsinfo']['maxfilesize']);
                 $this->assertEquals('user', $module['contentsinfo']['repositorytype']);
                 $this->assertGreaterThanOrEqual($timenow, $module['contentsinfo']['lastmodified']);
                 $this->assertEquals(array('text/plain', 'image/png', 'application/pdf'), $module['contentsinfo']['mimetypes']);
@@ -1570,6 +1571,48 @@ class core_course_externallib_testcase extends externallib_advanced_testcase {
         $this->assertCount(0, $sections[4]['modules']); // No modules for the section hidden.
         $this->assertCount(1, $sections[5]['modules']); // One stealth module.
         $this->assertEquals(-1, $sections[5]['id']);
+    }
+
+    /**
+     * Test course contents are zipped.
+     */
+    public function test_get_course_contents_zipped() {
+        global $USER;
+
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $course = self::getDataGenerator()->create_course();
+
+        $record = new stdClass();
+        $record->course = $course->id;
+
+        self::getDataGenerator()->create_module('resource', $record);
+        self::getDataGenerator()->create_module('resource', $record);
+
+        $draftitemid = file_get_unused_draft_itemid();
+        $result = core_course_external::get_course_contents($course->id,
+            [["name" => "zipcontentsitemid", "value" => $draftitemid], ["name" => "zipcontentsfilename", "value" => 'my.zip']]
+        );
+        $result = external_api::clean_returnvalue(core_course_external::get_course_contents_returns(), $result);
+
+        $fs = get_file_storage();
+        $filesystem = $fs->get_file_system();
+
+        // Check zip file generated in current user draft area.
+        $draftfiles = $fs->get_area_files(context_user::instance($USER->id)->id, 'user', 'draft', $draftitemid);
+        $this->assertCount(2, $draftfiles); // Includes the / folder.
+        $zipfile = array_pop($draftfiles);
+        $this->assertEquals('my.zip', $zipfile->get_filename());
+
+        $zipfilepath = $filesystem->get_local_path_from_storedfile($zipfile);;
+        $zip = new ZipArchive();
+        $opened = $zip->open($zipfilepath);
+        $this->assertTrue($opened);
+
+        // Check zip contents.
+        $this->assertEquals('resource1.txt', basename($zip->statIndex(0)['name']));
+        $this->assertEquals('resource2.txt', basename($zip->statIndex(1)['name']));
     }
 
     /**
