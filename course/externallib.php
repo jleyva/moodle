@@ -61,6 +61,9 @@ class core_course_external extends external_api {
                                                 'The expected keys (value format) are:
                                                 excludemodules (bool) Do not return modules, return only the sections structure
                                                 excludecontents (bool) Do not return module contents (i.e: files inside a resource)
+                                                zipcontentsitemid (int) Draft item id where to create a ZIP file with the contents
+                                                zipcontentsfilename (string) File name for the zip file (if zipcontentsitemid)
+                                                    defaults to coursecontents_COURSEID
                                                 includestealthmodules (bool) Return stealth modules for students in a special
                                                     section (with id -1)
                                                 sectionid (int) Return only this section
@@ -108,6 +111,7 @@ class core_course_external extends external_api {
                             $value = clean_param($option['value'], PARAM_BOOL);
                             $filters[$name] = $value;
                             break;
+                        case 'zipcontentsitemid':
                         case 'sectionid':
                         case 'sectionnumber':
                         case 'cmid':
@@ -121,6 +125,14 @@ class core_course_external extends external_api {
                             break;
                         case 'modname':
                             $value = clean_param($option['value'], PARAM_PLUGIN);
+                            if ($value) {
+                                $filters[$name] = $value;
+                            } else {
+                                throw new moodle_exception('errorinvalidparam', 'webservice', '', $name);
+                            }
+                            break;
+                        case 'zipcontentsfilename':
+                            $value = clean_param($option['value'], PARAM_FILE);
                             if ($value) {
                                 $filters[$name] = $value;
                             } else {
@@ -174,6 +186,15 @@ class core_course_external extends external_api {
             $stealthmodules = array();   // Array to keep all the modules available but not visible in a course section/topic.
 
             $completioninfo = new completion_info($course);
+
+            if (!empty($filters['zipcontentsitemid'])) {
+                if (!empty($filters['zipcontentsfilename'])) {
+                    $zipfilename = $filters['zipcontentsfilename'];
+                } else {
+                    $zipfilename = 'coursecontents_' . $params['courseid'] . '.zip';
+                }
+                $zipwriter = \core_files\archive_writer::get_file_writer($zipfilename, \core_files\archive_writer::ZIP_WRITER);
+            }
 
             //for each sections (first displayed to last displayed)
             $modinfosections = $modinfo->get_sections();
@@ -328,6 +349,7 @@ class core_course_external extends external_api {
                                 $module['contentsinfo'] = array(
                                     'filescount' => count($contents),
                                     'filessize' => 0,
+                                    'maxfilesize' => 0,
                                     'lastmodified' => 0,
                                     'mimetypes' => array(),
                                 );
@@ -339,6 +361,9 @@ class core_course_external extends external_api {
                                     }
                                     if (isset($content['filesize'])) {
                                         $module['contentsinfo']['filessize'] += $content['filesize'];
+                                        if ($content['filesize'] > $module['contentsinfo']['maxfilesize']) {
+                                            $module['contentsinfo']['maxfilesize'] = $content['filesize'];
+                                        }
                                     }
                                     if (isset($content['timemodified']) &&
                                             ($content['timemodified'] > $module['contentsinfo']['lastmodified'])) {
@@ -347,6 +372,14 @@ class core_course_external extends external_api {
                                     }
                                     if (isset($content['mimetype'])) {
                                         $module['contentsinfo']['mimetypes'][$content['mimetype']] = $content['mimetype'];
+                                    }
+                                    // Should we zip contents?
+                                    if (!empty($filters['zipcontentsitemid']) && isset($content['storedfile'])) {
+
+                                        $storedfile = $content['storedfile'];
+                                        $filepathinzip = $cm->id . '/' . $storedfile->get_filepath() . $storedfile->get_filename();
+                                        $zipwriter->add_file_from_stored_file($filepathinzip, $storedfile);
+                                        unset($content['storedfile']);
                                     }
                                 }
 
@@ -416,6 +449,21 @@ class core_course_external extends external_api {
                 );
             }
 
+            // Finish the zip and move it to the indicated draft item.
+            if (!empty($filters['zipcontentsitemid'])) {
+                $zipwriter->finish();
+
+                $filerecord = new stdClass;
+                $filerecord->component = 'user';
+                $filerecord->contextid = context_user::instance($USER->id)->id;
+                $filerecord->userid    = $USER->id;
+                $filerecord->filearea  = 'draft';
+                $filerecord->filename = $zipfilename;
+                $filerecord->filepath = '/';
+                $filerecord->itemid    = $filters['zipcontentsitemid'];
+                $fs = get_file_storage();
+                $fs->create_file_from_pathname($filerecord, $zipwriter->get_path_to_zip());
+            }
         }
         return $coursecontents;
     }
@@ -517,6 +565,7 @@ class core_course_external extends external_api {
                                         array(
                                             'filescount' => new external_value(PARAM_INT, 'Total number of files.'),
                                             'filessize' => new external_value(PARAM_INT, 'Total files size.'),
+                                            'maxfilesize' => new external_value(PARAM_INT, 'Max file size.', VALUE_OPTIONAL),
                                             'lastmodified' => new external_value(PARAM_INT, 'Last time files were modified.'),
                                             'mimetypes' => new external_multiple_structure(
                                                 new external_value(PARAM_RAW, 'File mime type.'),
