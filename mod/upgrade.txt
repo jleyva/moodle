@@ -1,6 +1,10 @@
 This files describes API changes in /mod/* - activity modules,
 information provided here is intended especially for developers.
 
+=== 4.1 ===
+* The mod_export_contents callback (for resources only) now should return an additional field 'storedfile' with the stored_file
+  instance when file system files are returned as part of the content structure.
+
 === 4.0 ===
 * A new API function introduced to handle custom completion logic. Refer to completion/upgrade.txt for additional information.
 * Modules that extend the settings navigation via '_extend_settings_navigation()' should use the get_page() method from

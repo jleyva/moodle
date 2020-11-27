@@ -426,6 +426,7 @@ function page_export_contents($cm, $baseurl) {
         if ($file['isexternalfile']) {
             $file['repositorytype'] = $fileinfo->get_repository_type();
         }
+        $file['storedfile'] = $fileinfo;
         $contents[] = $file;
     }
 
