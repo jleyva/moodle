@@ -441,6 +441,7 @@ function resource_export_contents($cm, $baseurl) {
     $resource = $DB->get_record('resource', array('id'=>$cm->instance), '*', MUST_EXIST);
 
     $fs = get_file_storage();
+    $filesystem = $fs->get_file_system();
     $files = $fs->get_area_files($context->id, 'mod_resource', 'content', 0, 'sortorder DESC, id ASC', false);
 
     foreach ($files as $fileinfo) {
@@ -461,6 +462,7 @@ function resource_export_contents($cm, $baseurl) {
         if ($file['isexternalfile']) {
             $file['repositorytype'] = $fileinfo->get_repository_type();
         }
+        $file['localpath'] = $filesystem->get_local_path_from_storedfile($fileinfo);
         $contents[] = $file;
     }
 

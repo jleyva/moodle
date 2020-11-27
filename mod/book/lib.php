@@ -557,6 +557,7 @@ function book_export_contents($cm, $baseurl) {
     $book = $DB->get_record('book', array('id' => $cm->instance), '*', MUST_EXIST);
 
     $fs = get_file_storage();
+    $filesystem = $fs->get_file_system();
 
     $chapters = $DB->get_records('book_chapters', array('bookid' => $book->id), 'pagenum');
 
@@ -631,6 +632,7 @@ function book_export_contents($cm, $baseurl) {
             if ($file['isexternalfile']) {
                 $file['repositorytype'] = $fileinfo->get_repository_type();
             }
+            $file['localpath'] = $filesystem->get_local_path_from_storedfile($fileinfo);
             $contents[] = $file;
         }
     }
