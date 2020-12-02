@@ -101,6 +101,33 @@ class zipwriter_test extends advanced_testcase {
     }
 
     /**
+     * Test add_file_local_path().
+     */
+    public function test_add_file_local_path(): void {
+        global $CFG;
+        $context = context_system::instance();
+
+        $pathinfolder = "/path/to/my/file.txt";
+        $mycontent = "Zippidy do dah";
+
+        $localpath = $CFG->tempdir . '/test_zipwriter.txt';
+        file_put_contents($localpath, $mycontent); // Create file manually.
+
+        $zipwriter = zipwriter::get_file_writer('test.zip');
+        $zipwriter->add_file_from_local_path($context, $pathinfolder, $localpath);
+        $zipwriter->finish();
+        unlink($localpath); // Delete local file.
+
+        $zipfilepath = $zipwriter->get_file_path();
+        $zip = new ZipArchive();
+        $opened = $zip->open($zipfilepath);
+        $this->assertTrue($opened);
+
+        $pathinzip = ltrim($zipwriter->get_context_path($context, $pathinfolder), '/');
+        $this->assertEquals($mycontent, $zip->getFromName($pathinzip));
+    }
+
+    /**
      * Test get_file_writer().
      */
     public function test_get_file_writer(): void {
