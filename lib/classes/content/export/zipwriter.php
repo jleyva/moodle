@@ -281,6 +281,26 @@ class zipwriter {
     }
 
     /**
+     * Add a file from a local path in the server.
+     *
+     * @param   context $context
+     * @param   string $filepathinzip
+     * @param   string $path The file local path to add
+     */
+    public function add_file_from_local_path(
+        context $context,
+        string $filepathinzip,
+        string $path
+    ): void {
+        $fullfilepathinzip = $this->get_context_path($context, $filepathinzip);
+
+        if (filesize($path) <= $this->maxfilesize) {
+            $this->archive->addFileFromPath($fullfilepathinzip, $path);
+            $this->filesinzip[] = $fullfilepathinzip;
+        }
+    }
+
+    /**
      * Ensure that all requirements for a templated page are present.
      *
      * This includes CSS, and any other similar content.
