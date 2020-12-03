@@ -329,6 +329,12 @@ class api {
             $settings->supportpage = $CFG->supportpage;
         }
 
+        if (empty($section) or $section == 'downloadcoursecontent') {
+            $settings->downloadcoursecontentallowed = $CFG->downloadcoursecontentallowed;
+            $settings->maxsizeperdownloadcoursefile =
+                isset($CFG->maxsizeperdownloadcoursefile) ? $CFG->maxsizeperdownloadcoursefile : 0;
+        }
+
         return $settings;
     }
 
