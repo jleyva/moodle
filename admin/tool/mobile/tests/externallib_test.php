@@ -233,6 +233,8 @@ class tool_mobile_external_testcase extends externallib_advanced_testcase {
         $expected[] = ['name' => 'supportname', 'value' => $CFG->supportname];
         $expected[] = ['name' => 'supportemail', 'value' => $CFG->supportemail];
         $expected[] = ['name' => 'supportpage', 'value' => $CFG->supportpage];
+        $expected[] = ['name' => 'downloadcoursecontentallowed', 'value' => $CFG->downloadcoursecontentallowed];
+        $expected[] = ['name' => 'maxsizeperdownloadcoursefile', 'value' => $CFG->maxsizeperdownloadcoursefile];
 
         $this->assertCount(0, $result['warnings']);
         $this->assertEquals($expected, $result['settings']);
