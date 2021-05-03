@@ -474,7 +474,9 @@ class mod_quiz_external_testcase extends externallib_advanced_testcase {
         // No grades yet.
         $this->assertFalse($result['hasgrade']);
         $this->assertTrue(!isset($result['grade']));
+        $this->assertTrue(!isset($result['gradetopass']));
 
+        // Add user grade and grade to pass.
         $grade = new stdClass();
         $grade->quiz = $this->quiz->id;
         $grade->userid = $this->student->id;
@@ -482,12 +484,19 @@ class mod_quiz_external_testcase extends externallib_advanced_testcase {
         $grade->timemodified = time();
         $grade->id = $DB->insert_record('quiz_grades', $grade);
 
+        // Set grade to pass.
+        $item = grade_item::fetch(array('courseid' => $this->course->id, 'itemtype' => 'mod',
+                                        'itemmodule' => 'quiz', 'iteminstance' => $this->quiz->id, 'outcomeid' => null));
+        $item->gradepass = 50.01;
+        $item->update();
+
         $result = mod_quiz_external::get_user_best_grade($this->quiz->id);
         $result = external_api::clean_returnvalue(mod_quiz_external::get_user_best_grade_returns(), $result);
 
         // Now I have grades.
         $this->assertTrue($result['hasgrade']);
         $this->assertEquals(8.9, $result['grade']);
+        $this->assertEquals(50.01, $result['gradetopass']);
 
         // We should not see other users grades.
         $anotherstudent = self::getDataGenerator()->create_user();
@@ -508,6 +517,7 @@ class mod_quiz_external_testcase extends externallib_advanced_testcase {
 
         $this->assertTrue($result['hasgrade']);
         $this->assertEquals(8.9, $result['grade']);
+        $this->assertEquals(50.01, $result['gradetopass']);
 
         // Invalid user.
         try {
