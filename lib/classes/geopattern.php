@@ -41,4 +41,12 @@ class core_geopattern extends \RedeyeVentures\GeoPattern\GeoPattern {
         return $this->toDataURI();
     }
 
+    /**
+     * Return the pattern in SVG format.
+     *
+     * @return string pattern
+     */
+    public function svg() : string {
+        return $this->toSVG();
+    }
 }
