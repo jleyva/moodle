@@ -442,7 +442,7 @@ class mod_assign_external extends \mod_assign\external\external_api {
                                 $options);
                         $assignment['introfiles'] = external_util::get_area_files($context->id, 'mod_assign', 'intro', false,
                                                                                     false);
-                        if ($assign->should_provide_intro_attachments()) {
+                        if ($assign->should_provide_intro_attachments($USER->id)) {
                             $assignment['introattachments'] = external_util::get_area_files($context->id, 'mod_assign',
                                 ASSIGN_INTROATTACHMENT_FILEAREA, 0);
                         }
@@ -472,7 +472,7 @@ class mod_assign_external extends \mod_assign\external\external_api {
                         }
                     }
 
-                    if ($module->activity) {
+                    if ($module->activity && $assign->submissions_open($USER->id, true)) {
                         $assignment['activity'] = $module->activity;
                         $assignment['activityformat'] = $module->activityformat;
                         $assignment['activityattachments'] = external_util::get_area_files($context->id, 'mod_assign',
@@ -2493,11 +2493,11 @@ class mod_assign_external extends \mod_assign\external\external_api {
         $instance = $assign->get_instance();
         $assignmentdata = [];
         $attachments = [];
-        if ($assign->should_provide_intro_attachments($params['userid'], $params['groupid'])) {
+        if ($assign->should_provide_intro_attachments($user->id)) {
             $attachments['intro'] = external_util::get_area_files($context->id, 'mod_assign',
                     ASSIGN_INTROATTACHMENT_FILEAREA, 0);
         }
-        if ($instance->activity) {
+        if ($instance->activity && ($lastattempt || $assign->submissions_open($user->id, true))) {
             $assignmentdata['activity'] = $instance->activity;
             $assignmentdata['activityformat'] = $instance->activityformat;
             $attachments['activity'] = external_util::get_area_files($context->id, 'mod_assign',

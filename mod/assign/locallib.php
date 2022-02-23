@@ -1909,27 +1909,26 @@ class assign {
     }
 
     /**
-     * Check if the intro attachments should be provided to the user. If no user id is provided, it will check for global user.
+     * Check if the intro attachments should be provided to the user.
      *
-     * @param int|null $userid User id.
-     * @param int $groupid Group id.
+     * @param int $userid User id.
      * @return bool
      */
-    public function should_provide_intro_attachments(?int $userid = null, int $groupid = 0): bool {
+    public function should_provide_intro_attachments(int $userid): bool {
         $instance = $this->get_instance($userid);
-
-        // If assignment does not show intro, we never provide intro attachments.
-        if (!$this->show_intro()) {
-            return false;
-        }
 
         // Check if user has permission to view attachments regardless of assignment settings.
         if (has_capability('moodle/course:manageactivities', $this->get_context(), $userid)) {
             return true;
         }
 
+        // If assignment does not show intro, we never provide intro attachments.
+        if (!$this->show_intro()) {
+            return false;
+        }
+
         // If intro attachments should only be shown when submission is started, check if there is an open submission.
-        if (!empty($instance->submissionattachments) && !$this->is_submission_open($userid, $groupid)) {
+        if (!empty($instance->submissionattachments) && !$this->submissions_open($userid, true)) {
             return false;
         }
 
