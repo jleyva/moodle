@@ -1,6 +1,11 @@
 This files describes API changes in /enrol/* - plugins,
 information provided here is intended especially for developers.
 
+=== 4.1 ===
+
+* External function core_enrol_external::get_users_courses now returns a field called "courseimage" containing a URL pointing to
+  the course image.
+
 === 4.0 ===
 
 * Final deprecation of the following webservice:

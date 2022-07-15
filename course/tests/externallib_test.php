@@ -2687,8 +2687,10 @@ class externallib_test extends externallib_advanced_testcase {
      * Test get_courses_by_fields
      */
     public function test_get_courses_by_field() {
-        global $DB;
+        global $DB, $USER;
         $this->resetAfterTest(true);
+
+        $this->setAdminUser();
 
         $category1 = self::getDataGenerator()->create_category(array('name' => 'Cat 1'));
         $category2 = self::getDataGenerator()->create_category(array('parent' => $category1->id));
@@ -2700,7 +2702,19 @@ class externallib_test extends externallib_advanced_testcase {
             'categoryid' => $fieldcategory->get('id')];
         $field = self::getDataGenerator()->create_custom_field($customfield);
         $customfieldvalue = ['shortname' => 'test', 'value' => 'Test value'];
-        $course2 = self::getDataGenerator()->create_course(array('visible' => 0, 'category' => $category2->id, 'idnumber' => 'i2', 'customfields' => [$customfieldvalue]));
+        // Create course image.
+        $draftid = file_get_unused_draft_itemid();
+        $filerecord = [
+            'component' => 'user',
+            'filearea' => 'draft',
+            'contextid' => context_user::instance($USER->id)->id,
+            'itemid' => $draftid,
+            'filename' => 'image.jpg',
+            'filepath' => '/',
+        ];
+        $fs = get_file_storage();
+        $fs->create_file_from_string($filerecord, file_get_contents(__DIR__ . '/fixtures/image.jpg'));
+        $course2 = self::getDataGenerator()->create_course(array('visible' => 0, 'category' => $category2->id, 'idnumber' => 'i2', 'customfields' => [$customfieldvalue], 'overviewfiles_filemanager' => $draftid));
 
         $student1 = self::getDataGenerator()->create_user();
         $user1 = self::getDataGenerator()->create_user();
@@ -2714,16 +2728,16 @@ class externallib_test extends externallib_advanced_testcase {
         $result = external_api::clean_returnvalue(core_course_external::get_courses_by_field_returns(), $result);
         $this->assertCount(3, $result['courses']);
         // Expect to receive all the fields.
-        $this->assertCount(40, $result['courses'][0]);
-        $this->assertCount(41, $result['courses'][1]);  // One more field because is not the site course.
-        $this->assertCount(41, $result['courses'][2]);  // One more field because is not the site course.
+        $this->assertCount(41, $result['courses'][0]);
+        $this->assertCount(42, $result['courses'][1]);  // One more field because is not the site course.
+        $this->assertCount(42, $result['courses'][2]);  // One more field because is not the site course.
 
         $result = core_course_external::get_courses_by_field('id', $course1->id);
         $result = external_api::clean_returnvalue(core_course_external::get_courses_by_field_returns(), $result);
         $this->assertCount(1, $result['courses']);
         $this->assertEquals($course1->id, $result['courses'][0]['id']);
         // Expect to receive all the fields.
-        $this->assertCount(41, $result['courses'][0]);
+        $this->assertCount(42, $result['courses'][0]);
         // Check default values for course format topics.
         $this->assertCount(2, $result['courses'][0]['courseformatoptions']);
         foreach ($result['courses'][0]['courseformatoptions'] as $option) {
@@ -2734,6 +2748,7 @@ class externallib_test extends externallib_advanced_testcase {
                 $this->assertEquals(0, $option['value']);
             }
         }
+        $this->assertStringContainsString('/course/generated', $result['courses'][0]['courseimage']);
 
         $result = core_course_external::get_courses_by_field('id', $course2->id);
         $result = external_api::clean_returnvalue(core_course_external::get_courses_by_field_returns(), $result);
@@ -2747,6 +2762,7 @@ class externallib_test extends externallib_advanced_testcase {
             'value' => $customfieldvalue['value'],
             'valueraw' => $customfieldvalue['value'],
         ], $result['courses'][0]['customfields'][0]);
+        $this->assertStringContainsString('/course/overviewfiles', $result['courses'][0]['courseimage']);
 
         $result = core_course_external::get_courses_by_field('ids', "$course1->id,$course2->id");
         $result = external_api::clean_returnvalue(core_course_external::get_courses_by_field_returns(), $result);
@@ -2784,15 +2800,15 @@ class externallib_test extends externallib_advanced_testcase {
         $result = core_course_external::get_courses_by_field();
         $result = external_api::clean_returnvalue(core_course_external::get_courses_by_field_returns(), $result);
         $this->assertCount(2, $result['courses']);
-        $this->assertCount(33, $result['courses'][0]);
-        $this->assertCount(34, $result['courses'][1]);  // One field more (course format options), not present in site course.
+        $this->assertCount(34, $result['courses'][0]);
+        $this->assertCount(35, $result['courses'][1]);  // One field more (course format options), not present in site course.
 
         $result = core_course_external::get_courses_by_field('id', $course1->id);
         $result = external_api::clean_returnvalue(core_course_external::get_courses_by_field_returns(), $result);
         $this->assertCount(1, $result['courses']);
         $this->assertEquals($course1->id, $result['courses'][0]['id']);
         // Expect to receive all the files that a student can see.
-        $this->assertCount(34, $result['courses'][0]);
+        $this->assertCount(35, $result['courses'][0]);
 
         // Check default filters.
         $filters = $result['courses'][0]['filters'];
@@ -2837,15 +2853,15 @@ class externallib_test extends externallib_advanced_testcase {
         $result = core_course_external::get_courses_by_field();
         $result = external_api::clean_returnvalue(core_course_external::get_courses_by_field_returns(), $result);
         $this->assertCount(2, $result['courses']);
-        $this->assertCount(33, $result['courses'][0]);  // Site course.
-        $this->assertCount(16, $result['courses'][1]);  // Only public information, not enrolled.
+        $this->assertCount(34, $result['courses'][0]);  // Site course.
+        $this->assertCount(17, $result['courses'][1]);  // Only public information, not enrolled.
 
         $result = core_course_external::get_courses_by_field('id', $course1->id);
         $result = external_api::clean_returnvalue(core_course_external::get_courses_by_field_returns(), $result);
         $this->assertCount(1, $result['courses']);
         $this->assertEquals($course1->id, $result['courses'][0]['id']);
         // Expect to receive all the files that a authenticated can see.
-        $this->assertCount(16, $result['courses'][0]);
+        $this->assertCount(17, $result['courses'][0]);
 
         // Course 2 is not visible.
         $result = core_course_external::get_courses_by_field('id', $course2->id);

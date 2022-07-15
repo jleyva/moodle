@@ -1,6 +1,10 @@
 This files describes API changes in /course/*,
 information provided here is intended especially for developers.
 
+=== 4.1 ===
+* External function core_course_external::get_courses_by_field and core_course_external::search_courses now return a field
+called "courseimage" containing a URL pointing to the course image.
+
 === 4.0 ===
 * All activity icons have been replaced with black monochrome icons. The background
 colour for these icons is defined using a new 'FEATURE_MOD_PURPOSE' support variable in the module lib.php file
