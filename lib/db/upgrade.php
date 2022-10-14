@@ -2925,5 +2925,19 @@ privatefiles,moodle|/user/files.php';
         upgrade_main_savepoint(true, 2022092200.01);
     }
 
+    if ($oldversion < 2022101400.01) {
+
+        // For sites with "contact site support" already available (4.0.x), maintain existing functionality.
+        if ($oldversion >= 2022041900.00) {
+            set_config('supportavailability', 2);
+        } else {
+            // Sites which did not previously have the "contact site support" feature default to it requiring authentication.
+            set_config('supportavailability', 1);
+        }
+
+        // Main savepoint reached.
+        upgrade_main_savepoint(true, 2022101400.01);
+    }
+
     return true;
 }
