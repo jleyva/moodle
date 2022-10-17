@@ -111,6 +111,7 @@ class externallib_test extends externallib_advanced_testcase {
         set_config('disabledfeatures', 'myoverview', 'tool_mobile');
         set_config('minimumversion', '3.8.0', 'tool_mobile');
         set_config('supportemail', 'test@test.com');
+        set_config('supportavailability', CONTACT_SUPPORT_ANYONE);
 
         // Enable couple of issuers.
         $issuer = \core\oauth2\api::create_standard_issuer('google');
