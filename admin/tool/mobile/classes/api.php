@@ -167,9 +167,6 @@ class api {
         // We need this to make work the format text functions.
         $PAGE->set_context($context);
 
-        // Check if contacting site support is available to all visitors.
-        $sitesupportavailable = (isset($CFG->supportavailability) && $CFG->supportavailability == CONTACT_SUPPORT_ANYONE);
-
         list($authinstructions, $notusedformat) = external_format_text($CFG->auth_instructions, FORMAT_MOODLE, $context->id);
         list($maintenancemessage, $notusedformat) = external_format_text($CFG->maintenance_message, FORMAT_MOODLE, $context->id);
         $settings = array(
@@ -201,7 +198,8 @@ class api {
             'tool_mobile_androidappid' => get_config('tool_mobile', 'androidappid'),
             'tool_mobile_setuplink' => clean_param(get_config('tool_mobile', 'setuplink'), PARAM_URL),
             'tool_mobile_qrcodetype' => clean_param(get_config('tool_mobile', 'qrcodetype'), PARAM_INT),
-            'supportpage' => $sitesupportavailable ? clean_param($CFG->supportpage, PARAM_URL) : '',
+            'supportpage' => clean_param($CFG->supportpage, PARAM_URL),
+            'supportavailability' => clean_param($CFG->supportavailability, PARAM_INT),
         );
 
         $typeoflogin = get_config('tool_mobile', 'typeoflogin');
@@ -239,8 +237,8 @@ class api {
             }
         }
 
-        // If age is verified, return also the admin contact details (unless contacting support is not available to all visitors).
-        if ($settings['agedigitalconsentverification'] && $sitesupportavailable) {
+        // If age is verified, return also the admin contact details.
+        if ($settings['agedigitalconsentverification']) {
             $settings['supportname'] = clean_param($CFG->supportname, PARAM_NOTAGS);
             $settings['supportemail'] = clean_param($CFG->supportemail, PARAM_EMAIL);
         }
@@ -333,15 +331,10 @@ class api {
         }
 
         if (empty($section) or $section == 'supportcontact') {
-            if ($CFG->supportavailability == CONTACT_SUPPORT_DISABLED) {
-                $settings->supportname = null;
-                $settings->supportemail = null;
-                $settings->supportpage = null;
-            } else {
-                $settings->supportname = $CFG->supportname;
-                $settings->supportemail = $CFG->supportemail ?? null;
-                $settings->supportpage = $CFG->supportpage;
-            }
+            $settings->supportname = $CFG->supportname;
+            $settings->supportemail = $CFG->supportemail ?? null;
+            $settings->supportpage = $CFG->supportpage;
+            $settings->supportavailability = $CFG->supportavailability;
         }
 
         if (empty($section) || $section === 'graceperiodsettings') {

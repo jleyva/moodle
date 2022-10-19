@@ -92,6 +92,7 @@ class externallib_test extends externallib_advanced_testcase {
             'tool_mobile_setuplink' => get_config('tool_mobile', 'setuplink'),
             'tool_mobile_qrcodetype' => get_config('tool_mobile', 'qrcodetype'),
             'supportpage' => $CFG->supportpage,
+            'supportavailability' => $CFG->supportavailability,
             'warnings' => array()
         );
         $this->assertEquals($expected, $result);
@@ -133,6 +134,7 @@ class externallib_test extends externallib_advanced_testcase {
         $expected['agedigitalconsentverification'] = true;
         $expected['supportname'] = $CFG->supportname;
         $expected['supportemail'] = $CFG->supportemail;
+        $expected['supportavailability'] = $CFG->supportavailability;
         $expected['autolang'] = '1';
         $expected['lang'] = ''; // Expect empty because it was set to an invalid lang.
         $expected['tool_mobile_disabledfeatures'] = 'myoverview';
@@ -230,6 +232,7 @@ class externallib_test extends externallib_advanced_testcase {
         $expected[] = ['name' => 'supportname', 'value' => $CFG->supportname];
         $expected[] = ['name' => 'supportemail', 'value' => $CFG->supportemail];
         $expected[] = ['name' => 'supportpage', 'value' => $CFG->supportpage];
+        $expected[] = ['name' => 'supportavailability', 'value' => $CFG->supportavailability];
 
         $expected[] = ['name' => 'coursegraceperiodafter', 'value' => $CFG->coursegraceperiodafter];
         $expected[] = ['name' => 'coursegraceperiodbefore', 'value' => $CFG->coursegraceperiodbefore];
