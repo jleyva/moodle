@@ -229,10 +229,10 @@ class externallib_test extends externallib_advanced_testcase {
                 'value' => get_config('core_admin', 'coursecolor' . $number)
             ];
         }
+        $expected[] = ['name' => 'supportavailability', 'value' => $CFG->supportavailability];
         $expected[] = ['name' => 'supportname', 'value' => $CFG->supportname];
         $expected[] = ['name' => 'supportemail', 'value' => $CFG->supportemail];
         $expected[] = ['name' => 'supportpage', 'value' => $CFG->supportpage];
-        $expected[] = ['name' => 'supportavailability', 'value' => $CFG->supportavailability];
 
         $expected[] = ['name' => 'coursegraceperiodafter', 'value' => $CFG->coursegraceperiodafter];
         $expected[] = ['name' => 'coursegraceperiodbefore', 'value' => $CFG->coursegraceperiodbefore];
