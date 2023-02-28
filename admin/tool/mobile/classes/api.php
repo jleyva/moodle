@@ -348,6 +348,10 @@ class api {
             $settings->customusermenuitems = $CFG->customusermenuitems;
         }
 
+        if (empty($section) || $section === 'appearance') {
+            $settings->courseindentation = $CFG->courseindentation;
+        }
+
         return $settings;
     }
 
