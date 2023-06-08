@@ -4937,10 +4937,13 @@ function file_pluginfile($relativepath, $forcedownload, $preview = null, $offlin
             send_stored_file($file, 60*60, 0, $forcedownload, $sendfileoptions);
 
         } else if ($filearea === 'generated') {
+
             if ($CFG->forcelogin) {
-                require_login($course);
-            } else if ($course->id != SITEID) {
-                require_login($course);
+                require_login();
+            }
+
+            if (!core_course_category::can_view_course_info($course)) {
+                send_file_not_found();
             }
 
             $svg = $OUTPUT->get_generated_svg_for_id($course->id);
