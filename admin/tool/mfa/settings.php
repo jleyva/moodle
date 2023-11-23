@@ -40,6 +40,10 @@ if ($hassiteconfig) {
     $name = new lang_string('settings:enabled', 'tool_mfa');
     $settings->add(new admin_setting_configcheckbox('tool_mfa/enabled', $name, '', false));
 
+    $name = new lang_string('settings:enabledformobile', 'tool_mfa');
+    $description = new lang_string('settings:enabledformobile_help', 'tool_mfa');
+    $settings->add(new admin_setting_configcheckbox('tool_mfa/enabledformobile', $name, $description, false));
+
     $name = new lang_string('settings:lockout', 'tool_mfa');
     $description = new lang_string('settings:lockout_help', 'tool_mfa');
     $settings->add(new admin_setting_configtext('tool_mfa/lockout', $name, $description, 10, PARAM_INT));
