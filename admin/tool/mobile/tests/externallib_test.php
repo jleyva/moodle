@@ -102,8 +102,10 @@ class externallib_test extends externallib_advanced_testcase {
             'tool_mobile_qrcodetype' => get_config('tool_mobile', 'qrcodetype'),
             'supportpage' => $CFG->supportpage,
             'supportavailability' => $CFG->supportavailability,
-            'warnings' => [],
             'showloginform' => (int) get_config('core', 'showloginform'),
+            'tool_mfa_enabled' => get_config('tool_mfa', 'enabled'),
+            'tool_mfa_enabledformobile' => false,
+            'warnings' => [],
         );
         $this->assertEquals($expected, $result);
 
