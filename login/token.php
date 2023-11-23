@@ -79,18 +79,21 @@ if (!empty($user)) {
         }
     }
 
+    // Check if the service exists and is enabled.
+    $service = $DB->get_record('external_services', ['shortname' => $serviceshortname, 'enabled' => 1]);
+    if (empty($service)) {
+        throw new moodle_exception('servicenotavailable', 'webservice');
+    }
+
+    // Allow plugins to callback as soon possible after user has bee nauthenticated.
+    $hook = new \core\hook\user\after_login_token_authentication($user, $service);
+    \core\hook\manager::get_instance()->dispatch($hook);
+
     // let enrol plugins deal with new enrolments if necessary
     enrol_check_plugins($user);
 
     // setup user session to check capability
     \core\session\manager::set_user($user);
-
-    //check if the service exists and is enabled
-    $service = $DB->get_record('external_services', array('shortname' => $serviceshortname, 'enabled' => 1));
-    if (empty($service)) {
-        // will throw exception if no token found
-        throw new moodle_exception('servicenotavailable', 'webservice');
-    }
 
     // Get an existing token or create a new one.
     $token = \core_external\util::generate_token_for_current_user($service);

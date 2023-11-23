@@ -30,4 +30,9 @@ $callbacks = [
         'callback' => 'tool_mfa\local\hooks\extend_bulk_user_actions::callback',
         'priority' => 0,
     ],
+    [
+        'hook' => core\hook\user\after_login_token_authentication::class,
+        'callback' => 'tool_mfa\local\hooks\after_login_token_authentication::callback',
+        'priority' => 500,
+    ],
 ];
