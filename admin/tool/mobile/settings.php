@@ -97,6 +97,7 @@ if ($hassiteconfig) {
         tool_mobile\api::LOGIN_VIA_APP => new lang_string('loginintheapp', 'tool_mobile'),
         tool_mobile\api::LOGIN_VIA_BROWSER => new lang_string('logininthebrowser', 'tool_mobile'),
         tool_mobile\api::LOGIN_VIA_EMBEDDED_BROWSER => new lang_string('loginintheembeddedbrowser', 'tool_mobile'),
+        tool_mobile\api::LOGIN_VIA_EMBEDDED_SITE => new lang_string('loginintheembeddedsite', 'tool_mobile'),
     );
     $temp->add(new admin_setting_configselect('tool_mobile/typeoflogin',
                 new lang_string('typeoflogin', 'tool_mobile'),

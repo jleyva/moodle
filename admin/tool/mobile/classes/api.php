@@ -49,6 +49,8 @@ class api {
     const LOGIN_VIA_BROWSER = 2;
     /** @var int to identify the login via an embedded browser. */
     const LOGIN_VIA_EMBEDDED_BROWSER = 3;
+    /** @var int to identify the login via an embedded site (iframe). */
+    const LOGIN_VIA_EMBEDDED_SITE = 4;
     /** @var int seconds an auto-login key will expire. */
     const LOGIN_KEY_TTL = 60;
     /** @var string URL of the Moodle Apps Portal */
@@ -256,6 +258,10 @@ class api {
             $settings['supportname'] = clean_param($CFG->supportname, PARAM_NOTAGS);
             $settings['supportemail'] = clean_param($CFG->supportemail, PARAM_EMAIL);
         }
+
+        // Check if MFA enabled in general and for the mobile app.
+        $settings['tool_mfa_enabled'] = clean_param(get_config('tool_mfa', 'enabled'), PARAM_BOOL);
+        $settings['tool_mfa_enabledformobile'] = clean_param(get_config('tool_mfa', 'enabledformobile'), PARAM_BOOL);
 
         return $settings;
     }

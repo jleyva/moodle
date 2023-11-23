@@ -32,6 +32,7 @@ $passport          = required_param('passport',  PARAM_RAW);    // Passport send
 $urlscheme         = optional_param('urlscheme', 'moodlemobile', PARAM_NOTAGS); // The URL scheme the app supports.
 $confirmed         = optional_param('confirmed', false, PARAM_BOOL);  // If we are being redirected after user confirmation.
 $oauthsso          = optional_param('oauthsso', 0, PARAM_INT); // Id of the OpenID issuer (for OAuth direct SSO).
+$mfalogintype      = optional_param('mfalogintype', 0, PARAM_INT); // Login type when mfa enabled. (LOGIN_VIA_BROWSER, LOGIN_VIA_EMBEDDED_BROWSER or LOGIN_VIA_EMBEDDED_SITE).
 
 // Validate that the urlscheme is valid.
 if (!preg_match('/^[a-zA-Z][a-zA-Z0-9-\+\.]*$/', $urlscheme)) {
@@ -68,10 +69,19 @@ if (!empty($oauthsso) && is_enabled_auth('oauth2')) {
 
 // Check if the plugin is properly configured.
 $typeoflogin = get_config('tool_mobile', 'typeoflogin');
+
+// When launching an MFA compatible type of login, check if MFA is globally enabled and the mobile app forced to use it.
+$mfaconfig = get_config('tool_mfa');
+if ($serviceshortname == MOODLE_OFFICIAL_MOBILE_SERVICE && $mfaconfig->enabled && $mfaconfig->enabledformobile) {
+    $typeoflogin = $mfalogintype;
+}
+
+// Validate type of login.
 if (empty($SESSION->justloggedin) &&
         !is_enabled_auth('oauth2') &&
         $typeoflogin != tool_mobile\api::LOGIN_VIA_BROWSER &&
-        $typeoflogin != tool_mobile\api::LOGIN_VIA_EMBEDDED_BROWSER) {
+        $typeoflogin != tool_mobile\api::LOGIN_VIA_EMBEDDED_BROWSER &&
+        $typeoflogin != tool_mobile\api::LOGIN_VIA_EMBEDDED_SITE) {
     throw new moodle_exception('pluginnotenabledorconfigured', 'tool_mobile');
 }
 
@@ -81,6 +91,14 @@ if (\core_useragent::is_moodle_app()) {
         cookiename: "MoodleSession{$CFG->sessioncookie}",
         attributes: ['Secure', 'Partitioned'],
     );
+}
+
+// Validate embedded site case. Secure cookie are required.
+if (empty($SESSION->justloggedin) &&
+        $typeoflogin == tool_mobile\api::LOGIN_VIA_EMBEDDED_SITE &&
+        !is_moodle_cookie_secure()) {
+
+    throw new moodle_exception('cookiesecure', 'admin');
 }
 
 require_login(0, false);
@@ -122,6 +140,25 @@ if (!empty($forcedurlscheme)) {
 }
 
 $location = "$urlscheme://token=$apptoken";
+
+// Use post message to send to the app the new URL scheme.
+// For security reasons, we only use postMessage when the site is embedded by the Moodle app.
+if ($typeoflogin == tool_mobile\api::LOGIN_VIA_EMBEDDED_SITE && core_useragent::is_moodle_app()) {
+
+    $PAGE->set_context(context_system::instance());
+    $PAGE->set_heading($SITE->fullname);
+    $params = ['service' => $serviceshortname, 'passport' => $passport, 'urlscheme' => $urlscheme, 'confirmed' => $confirmed, 'mfalogintype' => $mfalogintype];
+    $PAGE->set_url("/$CFG->admin/tool/mobile/launch.php", $params);
+
+    echo $OUTPUT->header();
+    echo html_writer::script(
+        "window.onload = function() {
+            window.parent.postMessage('".$location."', '*');
+        };"
+    );
+    echo $OUTPUT->footer();
+    die;
+}
 
 // For iOS 10 onwards, we have to simulate a user click.
 // If we come from the confirmation page, we should display a nicer page.

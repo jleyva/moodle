@@ -91,6 +91,7 @@ $string['launchviasiteinbrowser'] = 'Launch via site in system browser';
 $string['loginintheapp'] = 'Via the app';
 $string['logininthebrowser'] = 'Via a browser window (for SSO plugins)';
 $string['loginintheembeddedbrowser'] = 'Via an embedded browser (for SSO plugins)';
+$string['loginintheembeddedsite'] = 'Via the site embedded in the app (for SSO and MFA)';
 $string['logoutconfirmation'] = 'Are you sure you want to log out from the mobile app on your mobile devices? By logging out, you will then need to re-enter your username and password in the mobile app on all devices where you have the app installed.';
 $string['mainmenu'] = 'Main menu';
 $string['managefiletypes'] = 'Manage file types';

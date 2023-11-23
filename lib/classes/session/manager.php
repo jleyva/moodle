@@ -647,6 +647,12 @@ class manager {
         if (\core_useragent::is_chrome() && \core_useragent::check_chrome_version('78') && is_moodle_cookie_secure()) {
             return true;
         }
+
+        // When the site is embedded within the Moodle app, we want to set SameSite=None always to ensure session cookies won't be blocked by the Android/iOS WebView component.
+        if (\core_useragent::is_moodle_app()) {
+            return true;
+        }
+
         return false;
     }
 
