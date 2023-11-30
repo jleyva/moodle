@@ -265,9 +265,32 @@ class externallib_test extends externallib_advanced_testcase {
         $optionalpolicy = api::form_policydoc_add($formdata);
         api::make_current($optionalpolicy->get('id'));
 
-        $policies = \tool_policy\external\get_user_acceptances::execute($user->id);
+        $policies = \tool_policy\external\get_user_acceptances::execute();
         $policies = \core_external\external_api::clean_returnvalue(
             \tool_policy\external\get_user_acceptances::execute_returns(), $policies);
-        var_dump($policies);
+
+        $this->assertCount(2, $policies['policies']);
+        $this->assertCount(0, $policies['warnings']);
+        foreach ($policies['policies'] as $policy) {
+            if ($policy['versionid'] == $this->policy2->get('id')) {
+                $this->assertEquals($this->policy2->get('name'), $policy['name']);
+                $this->assertEquals(0, $policy['optional']);
+            } else {
+                $this->assertEquals($optionalpolicy->get('name'), $policy['name']);
+                $this->assertEquals(1, $policy['optional']);
+            }
+            $this->assertNotContains('acceptance', $policy);    // Nothing accepted yet.
+        }
+
+        // Get other user acceptances.
+        $this->setUser($this->parent);
+        $policies = \tool_policy\external\get_user_acceptances::execute($this->child->id);
+        $policies = \core_external\external_api::clean_returnvalue(
+            \tool_policy\external\get_user_acceptances::execute_returns(), $policies);
+        $this->assertCount(2, $policies['policies']);
+
+        // Get other user acceptances without permission.
+        $this->expectException(\required_capability_exception::class);
+        $policies = \tool_policy\external\get_user_acceptances::execute($user->id);
     }
 }
