@@ -69,7 +69,9 @@ class get_user_acceptances extends external_api {
         );
 
         // Do not check for the site policies in validate_context() to avoid the redirect loop.
-        define('NO_SITEPOLICY_CHECK', true);
+        if (!defined('NO_SITEPOLICY_CHECK')) {
+            define('NO_SITEPOLICY_CHECK', true);
+        }
 
         $systemcontext = \context_system::instance();
         external_api::validate_context($systemcontext);
@@ -94,6 +96,7 @@ class get_user_acceptances extends external_api {
             foreach ($userpolicy->versions as $version) {
 
                 $policy = (array) clone $version;
+                unset($policy['acceptance']); // This might return NULL and break the WS response.
                 $policy['versionid'] = $version->id;
                 $policy['name'] = util::format_string($version->name, $systemcontext);
                 $policy['revision'] = util::format_string($version->revision, $systemcontext);
@@ -102,7 +105,7 @@ class get_user_acceptances extends external_api {
                 [$policy['content'], $policy['contentformat']] = util::format_text($version->content,
                     $version->contentformat, $systemcontext);
 
-                if ($version->acceptance !== null) {
+                if (!empty($version->acceptance)) {
                     $policy['acceptance'] = (array) $policy['acceptance'];
                     if ($version->acceptance->usermodified && $version->acceptance->usermodified != $user->id) {
                         // Get the full name of who accepted on behalf.
