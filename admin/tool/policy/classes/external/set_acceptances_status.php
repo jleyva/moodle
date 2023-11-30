@@ -75,7 +75,9 @@ class set_acceptances_status extends external_api {
         );
 
         // Do not check for the site policies in validate_context() to avoid the redirect loop.
-        //define('NO_SITEPOLICY_CHECK', true);
+        if (!defined('NO_SITEPOLICY_CHECK')) {
+            define('NO_SITEPOLICY_CHECK', true);
+        }
 
         $systemcontext = \context_system::instance();
         external_api::validate_context($systemcontext);
