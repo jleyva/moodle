@@ -19,6 +19,7 @@ namespace core\session;
 use core\clock;
 use core\di;
 use html_writer;
+use core\session\utility\cookie_helper;
 
 /**
  * Session manager, this is the public Moodle API for sessions.
@@ -554,6 +555,11 @@ class manager {
         if ($timedout) {
             $_SESSION['SESSION']->has_timed_out = true;
         }
+
+        // Enforce Partitioned and Secure attributes to the MoodleSession cookie if the user is using the Moodle app.
+        if (\core_useragent::is_moodle_app()) {
+            cookie_helper::add_attributes_to_cookie_response_header('MoodleSession'.$CFG->sessioncookie, ['Secure', 'Partitioned']);
+        }
     }
 
     /**
@@ -641,6 +647,11 @@ class manager {
 
         // Setup $USER object.
         self::set_user($user);
+
+        // Enforce Partitioned and Secure attributes to the MoodleSession cookie if the user is using the Moodle app.
+        if (\core_useragent::is_moodle_app()) {
+            cookie_helper::add_attributes_to_cookie_response_header('MoodleSession'.$CFG->sessioncookie, ['Secure', 'Partitioned']);
+        }
     }
 
     /**
@@ -697,6 +708,11 @@ class manager {
         self::init_empty_session();
         self::add_session($_SESSION['USER']->id); // Do not use $USER here because it may not be set up yet.
         self::write_close();
+
+        // Enforce Partitioned and Secure attributes to the MoodleSession cookie if the user is using the Moodle app.
+        if (\core_useragent::is_moodle_app()) {
+            cookie_helper::add_attributes_to_cookie_response_header('MoodleSession'.$CFG->sessioncookie, ['Secure', 'Partitioned']);
+        }
     }
 
     /**

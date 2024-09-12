@@ -97,13 +97,5 @@ class hook_callbacks {
                 $SESSION->wantsurl = (new \moodle_url("/$CFG->admin/tool/mobile/launch.php", $params))->out(false);
             }
         }
-
-        // Set Partitioned and Secure attributes to the MoodleSession cookie if the user is using the Moodle app.
-        if (\core_useragent::is_moodle_app()) {
-            cookie_helper::add_attributes_to_cookie_response_header(
-                'MoodleSession' . $CFG->sessioncookie,
-                ['Secure', 'Partitioned'],
-            );
-        }
     }
 }
