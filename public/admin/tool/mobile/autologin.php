@@ -34,10 +34,7 @@ $PAGE->set_context($context);
 
 // Check if the user is already logged-in.
 if (isloggedin() and !isguestuser()) {
-    delete_user_key('tool_mobile', $userid);
-    if ($USER->id == $userid) {
-        redirect($urltogo);
-    } else {
+    if ($USER->id != $userid) {
         throw new moodle_exception('alreadyloggedin', 'error', '', format_string(fullname($USER)));
     }
 }
@@ -61,6 +58,8 @@ core_user::require_active_user($user, true, true);
 if (!$user = get_complete_user_data('id', $user->id)) {
     throw new moodle_exception('cannotfinduser', '', '', $user->id);
 }
+
+$SESSION->tool_mfa_authenticated = true;
 
 complete_user_login($user);
 \core\session\manager::apply_concurrent_login_limit($user->id, session_id());
