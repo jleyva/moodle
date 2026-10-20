@@ -586,13 +586,19 @@ class auth_plugin_base {
      * - url => (moodle_url|string) URL of the page to send the user to for authentication
      * - name => (string) Human readable name of the IdP
      * - iconurl => (moodle_url|string) URL of the icon representing the IdP (since Moodle 3.3)
+     * - idpid => (string) Optional stable identifier of this IdP within the plugin (since Moodle 6.0)
+     *
+     * The idpid must match PARAM_ALPHANUMEXT and must not change between requests, as clients
+     * such as the mobile app store it and send it back later to start an authentication flow.
+     * When it is omitted, core derives one from the plugin name and the URL, which is enough
+     * for any plugin whose URL is stable apart from the sesskey and wantsurl parameters.
      *
      * For legacy reasons, pre-3.3 plugins can provide the icon via the key:
      *
      * - icon => (pix_icon) Icon representing the IdP
      *
      * @param string $wantsurl The relative url fragment the user wants to get to.
-     * @return array List of associative arrays with keys url, name, iconurl|icon
+     * @return array List of associative arrays with keys url, name, iconurl|icon, idpid
      */
     function loginpage_idp_list($wantsurl) {
         return array();
@@ -726,20 +732,91 @@ class auth_plugin_base {
      * icon). See the documentation of {@link auth_plugin_base::loginpage_idp_list()}
      * for detailed description of the returned structure.
      *
+     * Core adds two more keys to every entry: authplugin, the name of the plugin that
+     * published it, and idpid, a stable identifier for it within that plugin.
+     *
      * @param array $authsequence site's auth sequence (list of auth plugins ordered)
+     * @param string|null $wantsurl The relative url fragment the user wants to get to,
+     *      defaults to $SESSION->wantsurl when null.
      * @return array List of arrays describing the identity providers
      */
-    public static function get_identity_providers($authsequence) {
+    public static function get_identity_providers($authsequence, ?string $wantsurl = null) {
         global $SESSION;
 
         $identityproviders = [];
         $authentication = \core\di::get(\core\authentication::class);
+        $wantsurl = $wantsurl ?? (isset($SESSION->wantsurl) ? $SESSION->wantsurl : '');
         foreach ($authsequence as $authname) {
             $authplugin = $authentication->get_plugin($authname);
-            $wantsurl = (isset($SESSION->wantsurl)) ? $SESSION->wantsurl : '';
-            $identityproviders = array_merge($identityproviders, $authplugin->loginpage_idp_list($wantsurl));
+            foreach ($authplugin->loginpage_idp_list($wantsurl) as $idp) {
+                $idp['authplugin'] = $authname;
+                $idp['idpid'] = self::get_identity_provider_id($authname, $idp);
+                $identityproviders[] = $idp;
+            }
         }
         return $identityproviders;
+    }
+
+    /**
+     * Build a stable identifier for an identity provider entry.
+     *
+     * Plugins may publish their own idpid. Otherwise it is derived from the plugin name and
+     * the provider URL, with the parameters that change between requests removed, so that the
+     * same provider always yields the same identifier.
+     *
+     * @param string $authname The auth plugin name.
+     * @param array $idp An entry as returned by auth_plugin_base::loginpage_idp_list().
+     * @return string
+     * @since Moodle 6.0
+     */
+    protected static function get_identity_provider_id(string $authname, array $idp): string {
+        if (!empty($idp['idpid'])) {
+            return clean_param((string) $idp['idpid'], PARAM_ALPHANUMEXT);
+        }
+
+        $url = new moodle_url($idp['url'] ?? '');
+        $url->remove_params(['sesskey', 'wantsurl']);
+
+        return substr(hash('sha256', $authname . '|' . $url->out(false)), 0, 32);
+    }
+
+    /**
+     * Find an enabled identity provider by its identifier.
+     *
+     * Only providers published by currently enabled auth plugins are returned, which is what
+     * makes the returned URL safe to redirect to.
+     *
+     * @param string $idpid The identity provider identifier.
+     * @param string $authplugin Restrict the search to this auth plugin, empty to search all enabled ones.
+     * @param string $wantsurl The local url the identity provider should return the user to.
+     * @return array|null The identity provider entry, or null when it cannot be resolved.
+     * @since Moodle 6.0
+     */
+    public static function get_identity_provider(
+        string $idpid,
+        string $authplugin = '',
+        string $wantsurl = '',
+    ): ?array {
+        if ($idpid === '') {
+            return null;
+        }
+
+        $authsequence = \core\di::get(\core\authentication::class)->get_enabled_plugins();
+
+        if ($authplugin !== '') {
+            if (!in_array($authplugin, $authsequence)) {
+                return null;
+            }
+            $authsequence = [$authplugin];
+        }
+
+        foreach (self::get_identity_providers($authsequence, $wantsurl) as $idp) {
+            if ($idp['idpid'] === $idpid) {
+                return $idp;
+            }
+        }
+
+        return null;
     }
 
     /**

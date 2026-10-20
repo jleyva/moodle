@@ -611,4 +611,130 @@ final class authlib_test extends \advanced_testcase {
         $this->assertStringContainsString('Hi ' . $user->firstname, quoted_printable_decode($result[0]->body));
     }
 
+    /**
+     * Identity provider entries are decorated with the publishing plugin and a stable identifier.
+     */
+    public function test_get_identity_providers_sets_authplugin_and_idpid(): void {
+        global $CFG;
+        require_once("$CFG->libdir/authlib.php");
+
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $issuer = \core\oauth2\api::create_standard_issuer('google');
+        $record = $issuer->to_record();
+        $record->clientid = 'mock';
+        $record->clientsecret = 'mock';
+        \core\oauth2\api::update_issuer($record);
+
+        set_config('user_attribute', 'eppn', 'auth_shibboleth');
+        set_config('auth_logo', '', 'auth_shibboleth');
+        set_config('login_name', 'My institution', 'auth_shibboleth');
+        set_config('auth', 'oauth2,shibboleth');
+
+        $authsequence = \core\di::get(\core\authentication::class)->get_enabled_plugins();
+        $idps = \auth_plugin_base::get_identity_providers($authsequence);
+
+        $byplugin = [];
+        foreach ($idps as $idp) {
+            $this->assertArrayHasKey('authplugin', $idp);
+            $this->assertArrayHasKey('idpid', $idp);
+            $this->assertNotEmpty($idp['idpid']);
+            $byplugin[$idp['authplugin']] = $idp;
+        }
+
+        $this->assertArrayHasKey('oauth2', $byplugin);
+        $this->assertArrayHasKey('shibboleth', $byplugin);
+
+        // Both core plugins publish their own identifier.
+        $this->assertSame((string) $issuer->get('id'), $byplugin['oauth2']['idpid']);
+        $this->assertSame('shibboleth', $byplugin['shibboleth']['idpid']);
+    }
+
+    /**
+     * A derived identifier is stable across the parameters that change between requests.
+     */
+    public function test_get_identity_provider_id_ignores_per_request_params(): void {
+        global $CFG;
+        require_once("$CFG->libdir/authlib.php");
+
+        $method = new \ReflectionMethod(\auth_plugin_base::class, 'get_identity_provider_id');
+        $method->setAccessible(true);
+
+        // The same provider, asked for twice with a different sesskey and wantsurl.
+        $first = $method->invoke(null, 'saml2', ['url' => new \moodle_url('/auth/saml2/login.php',
+            ['idp' => 'abc', 'sesskey' => 'one', 'wantsurl' => '/first'])]);
+        $second = $method->invoke(null, 'saml2', ['url' => new \moodle_url('/auth/saml2/login.php',
+            ['idp' => 'abc', 'sesskey' => 'two', 'wantsurl' => '/second'])]);
+        $this->assertSame($first, $second);
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $first);
+
+        // A different provider from the same plugin is a different identifier.
+        $other = $method->invoke(null, 'saml2',
+            ['url' => new \moodle_url('/auth/saml2/login.php', ['idp' => 'xyz'])]);
+        $this->assertNotSame($first, $other);
+
+        // The same URL published by another plugin is a different identifier.
+        $elsewhere = $method->invoke(null, 'oidc', ['url' => new \moodle_url('/auth/saml2/login.php',
+            ['idp' => 'abc'])]);
+        $this->assertNotSame($first, $elsewhere);
+
+        // An identifier published by the plugin wins over the derived one, and is cleaned.
+        $this->assertSame('my-idp_1', $method->invoke(null, 'saml2', [
+            'url' => new \moodle_url('/auth/saml2/login.php'),
+            'idpid' => 'my-idp_1',
+        ]));
+        $this->assertSame('dropped', $method->invoke(null, 'saml2', [
+            'url' => new \moodle_url('/auth/saml2/login.php'),
+            'idpid' => 'drop ped!',
+        ]));
+    }
+
+    /**
+     * An identifier resolves back to the provider it names, and only for enabled plugins.
+     */
+    public function test_get_identity_provider(): void {
+        global $CFG;
+        require_once("$CFG->libdir/authlib.php");
+
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $issuer = \core\oauth2\api::create_standard_issuer('google');
+        $record = $issuer->to_record();
+        $record->clientid = 'mock';
+        $record->clientsecret = 'mock';
+        \core\oauth2\api::update_issuer($record);
+        $idpid = (string) $issuer->get('id');
+
+        set_config('user_attribute', 'eppn', 'auth_shibboleth');
+        set_config('auth_logo', '', 'auth_shibboleth');
+        set_config('login_name', 'My institution', 'auth_shibboleth');
+        set_config('auth', 'oauth2,shibboleth');
+
+        // The happy path, with and without the plugin hint.
+        $idp = \auth_plugin_base::get_identity_provider($idpid, 'oauth2');
+        $this->assertNotNull($idp);
+        $this->assertSame($idpid, $idp['idpid']);
+        $this->assertSame('oauth2', $idp['authplugin']);
+        $this->assertSame($idpid, \auth_plugin_base::get_identity_provider($idpid)['idpid']);
+
+        // The return url reaches the plugin, which builds it into its own URL.
+        $idp = \auth_plugin_base::get_identity_provider($idpid, 'oauth2', '/my/');
+        $this->assertSame('/my/', $idp['url']->get_param('wantsurl'));
+
+        // An identifier belonging to another plugin does not resolve under this one.
+        $this->assertNull(\auth_plugin_base::get_identity_provider($idpid, 'shibboleth'));
+        $this->assertNotNull(\auth_plugin_base::get_identity_provider('shibboleth', 'shibboleth'));
+
+        // Unknown and empty identifiers.
+        $this->assertNull(\auth_plugin_base::get_identity_provider('nosuchprovider'));
+        $this->assertNull(\auth_plugin_base::get_identity_provider(''));
+
+        // Nothing resolves once the plugin is disabled, even with a previously valid identifier.
+        set_config('auth', 'shibboleth');
+        $this->assertNull(\auth_plugin_base::get_identity_provider($idpid, 'oauth2'));
+        $this->assertNull(\auth_plugin_base::get_identity_provider($idpid));
+    }
+
 }

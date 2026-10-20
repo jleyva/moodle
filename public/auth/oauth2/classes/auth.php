@@ -185,7 +185,12 @@ class auth extends \auth_plugin_base {
                 }
                 $url = new moodle_url('/auth/oauth2/login.php', $params);
                 $icon = $idp->get('image');
-                $result[] = ['url' => $url, 'iconurl' => $icon, 'name' => $idp->get_display_name()];
+                $result[] = [
+                    'url' => $url,
+                    'iconurl' => $icon,
+                    'name' => $idp->get_display_name(),
+                    'idpid' => (string) $idp->get('id'),
+                ];
             }
         }
         return $result;

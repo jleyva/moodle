@@ -306,6 +306,7 @@ class auth_plugin_shibboleth extends auth_plugin_base {
             'url' => new moodle_url('/auth/shibboleth/index.php'),
             'iconurl' => $iconurl,
             'name' => format_string($config->login_name ?? '', options: ['context' => $context]),
+            'idpid' => 'shibboleth',
         ];
 
         return $result;
