@@ -162,6 +162,12 @@ class external extends external_api {
                             'name' => new external_value(PARAM_TEXT, 'The identity provider name.'),
                             'iconurl' => new external_value(PARAM_URL, 'The icon URL for the provider.'),
                             'url' => new external_value(PARAM_URL, 'The URL of the provider.'),
+                            'idpid' => new external_value(PARAM_ALPHANUMEXT,
+                                'Stable identifier of the provider, to be sent to launch.php as idpid.',
+                                VALUE_OPTIONAL),
+                            'authplugin' => new external_value(PARAM_PLUGIN,
+                                'Auth plugin publishing the provider, to be sent to launch.php as idpauth.',
+                                VALUE_OPTIONAL),
                         )
                     ),
                     'Identity providers', VALUE_OPTIONAL

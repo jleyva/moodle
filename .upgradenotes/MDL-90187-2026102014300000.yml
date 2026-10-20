@@ -1,0 +1,57 @@
+issueNumber: MDL-90187
+notes:
+  core_auth:
+    - message: >-
+        Identity provider entries returned by
+        `auth_plugin_base::get_identity_providers()` now carry two extra keys.
+        `authplugin` is the name of the auth plugin that published the entry, and
+        `idpid` is a stable identifier for that provider within the plugin, so a
+        provider can be named and requested later rather than only rendered as a
+        link.
+
+        A plugin may publish its own `idpid` from `loginpage_idp_list()`, which
+        must match PARAM_ALPHANUMEXT and must not change between requests. When
+        it is omitted, core derives one from the plugin name and the provider URL
+        with the `sesskey` and `wantsurl` parameters removed, so a plugin whose
+        URL is otherwise stable needs no change at all. A plugin that puts a
+        nonce or any other per-request value in its URL should publish an
+        explicit `idpid`. `auth_oauth2` publishes the issuer id and
+        `auth_shibboleth` publishes `shibboleth`.
+
+        `get_identity_providers()` also takes an optional second argument,
+        `$wantsurl`, which overrides the `$SESSION->wantsurl` it would otherwise
+        pass to each plugin. The change is additive, so existing callers are
+        unaffected.
+      type: changed
+    - message: >-
+        A new `auth_plugin_base::get_identity_provider()` method resolves an
+        identifier back to an identity provider entry. It regenerates the list
+        from the enabled auth plugins and returns the matching entry, or null
+        when the identifier does not belong to an enabled plugin, so the URL it
+        returns is always one an enabled plugin produced rather than anything
+        taken from a request. It takes the identifier, an optional auth plugin
+        name to restrict the search to, and an optional local return URL.
+      type: added
+  tool_mobile:
+    - message: >-
+        `admin/tool/mobile/launch.php` can now start an SSO flow with any auth
+        plugin that implements `loginpage_idp_list()`, not just OAuth 2. It
+        accepts two new parameters: `idpid`, the identifier of the provider to
+        redirect to, and `idpauth`, the auth plugin that published it. Both
+        values are returned per provider by `tool_mobile_get_public_config`,
+        which now includes `idpid` and `authplugin` in each `identityproviders`
+        entry.
+
+        The `oauthsso` parameter keeps working and is **not** deprecated.
+        Released mobile app versions send it, and a site cannot control which app
+        version its users have installed, so it is mapped internally onto
+        `idpid` plus `idpauth=oauth2` rather than kept as a separate code path.
+
+        When an identifier cannot be resolved, because the provider was removed
+        or its plugin was disabled after the app cached the site configuration,
+        the launch falls through to the normal login flow instead of failing, and
+        the reason is reported through `debugging()`. The launch cookie no longer
+        stores the identity provider parameters, which stops the login and MFA
+        hooks rebuilding a launch URL that sends an already authenticated user
+        back through the SSO redirect.
+      type: changed

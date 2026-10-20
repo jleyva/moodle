@@ -168,6 +168,9 @@ final class externallib_test extends \core_external\tests\externallib_testcase {
         $this->assertEquals('Google', $identityprovider[0]['name']);
         $this->assertEquals($irecord->image, $identityprovider[0]['iconurl']);
         $this->assertStringContainsString($CFG->wwwroot, $identityprovider[0]['url']);
+        // The app sends these two back to launch.php to start an SSO flow with this provider.
+        $this->assertEquals((string) $irecord->id, $identityprovider[0]['idpid']);
+        $this->assertEquals('oauth2', $identityprovider[0]['authplugin']);
         $this->assertEquals($expected, $result);
     }
 

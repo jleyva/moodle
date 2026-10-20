@@ -26,12 +26,16 @@
  */
 
 require_once(__DIR__ . '/../../../config.php');
+require_once($CFG->libdir . '/authlib.php');
 
 $serviceshortname  = required_param('service',  PARAM_ALPHANUMEXT);
 $passport          = required_param('passport',  PARAM_RAW);    // Passport send from the app to validate the response URL.
 $urlscheme         = optional_param('urlscheme', 'moodlemobile', PARAM_NOTAGS); // The URL scheme the app supports.
 $confirmed         = optional_param('confirmed', false, PARAM_BOOL);  // If we are being redirected after user confirmation.
-$oauthsso          = optional_param('oauthsso', 0, PARAM_INT); // Id of the OpenID issuer (for OAuth direct SSO).
+$idpid             = optional_param('idpid', '', PARAM_ALPHANUMEXT); // Identity provider to start a direct SSO with.
+$idpauth           = optional_param('idpauth', '', PARAM_PLUGIN); // Auth plugin publishing that identity provider.
+// Id of the OpenID issuer. Superseded by idpid/idpauth, but still sent by released app versions.
+$oauthsso          = optional_param('oauthsso', 0, PARAM_INT);
 
 // Validate that the urlscheme is valid.
 if (!preg_match('/^[a-zA-Z][a-zA-Z0-9-\+\.]*$/', $urlscheme)) {
@@ -51,27 +55,55 @@ if (empty($service)) {
 }
 
 // Set a cookie indicating that there was a launch to authenticate via the site from the app.
+// The identity provider parameters are deliberately left out: the login hooks rebuild the launch
+// URL from this cookie, and including them would send the user back through the SSO redirect
+// after they have already authenticated.
 $ldata = json_encode(['service' => $serviceshortname, 'passport' => $passport,
-    'urlscheme' => $urlscheme, 'confirmed' => (int) $confirmed, 'oauthsso' => $oauthsso]);
+    'urlscheme' => $urlscheme, 'confirmed' => (int) $confirmed]);
 $expires = time() + (15 * MINSECS); // 15 minutes for authentication should be enough.
 setcookie('tool_mobile_launch', $ldata, $expires, $CFG->sessioncookiepath, $CFG->sessioncookiedomain);
 
-// We have been requested to start a SSO process via OpenID.
-if (!empty($oauthsso) && \core\di::get(\core\authentication::class)->is_enabled('oauth2')) {
-    $wantsurl = new moodle_url('/admin/tool/mobile/launch.php',
-        array('service' => $serviceshortname, 'passport' => $passport, 'urlscheme' => $urlscheme, 'confirmed' => $confirmed));
-    $oauthurl = new moodle_url('/auth/oauth2/login.php',
-        array('id' => $oauthsso, 'sesskey' => sesskey(), 'wantsurl' => $wantsurl));
-    header('Location: ' . $oauthurl->out(false));
-    die;
+// Map the legacy oauthsso parameter onto the generic identity provider parameters.
+if (empty($idpid) && !empty($oauthsso)) {
+    $idpid = (string) $oauthsso;
+    $idpauth = 'oauth2';
+}
+
+// We have been requested to start a SSO process with a given identity provider.
+if (!empty($idpid)) {
+    // Where the identity provider must return the user once they are authenticated.
+    $returnurl = new moodle_url("/$CFG->admin/tool/mobile/launch.php",
+        ['service' => $serviceshortname, 'passport' => $passport, 'urlscheme' => $urlscheme, 'confirmed' => $confirmed]);
+
+    // Resolve the identifier against the providers the enabled auth plugins publish. The URL we
+    // redirect to is always one of those, never anything taken from the request.
+    $idp = \auth_plugin_base::get_identity_provider($idpid, $idpauth, $returnurl->out_as_local_url(false));
+
+    if (empty($idp)) {
+        // The provider is gone, disabled or never existed. Don't fail: the launch cookie is already
+        // set, so falling through to the normal login flow still authenticates the user and returns
+        // a token to the app.
+        debugging("Mobile launch requested an identity provider that could not be resolved: " .
+            "idpid '$idpid', auth plugin '$idpauth'.", DEBUG_DEVELOPER);
+    } else {
+        // Some auth plugins ignore the wantsurl argument and read $SESSION->wantsurl instead.
+        $SESSION->wantsurl = $returnurl->out(false);
+
+        $idpurl = $idp['url'] instanceof moodle_url ? $idp['url']->out(false) : (string) $idp['url'];
+        header('Location: ' . $idpurl);
+        die;
+    }
 }
 
 // Check if the plugin is properly configured.
+// Any enabled identity provider makes an SSO launch possible, not just OAuth 2. The provider
+// lookup is last so that it only runs when the cheaper checks have not already settled it.
 $typeoflogin = get_config('tool_mobile', 'typeoflogin');
 if (empty($SESSION->justloggedin) &&
-        !\core\di::get(\core\authentication::class)->is_enabled('oauth2') &&
         $typeoflogin != tool_mobile\api::LOGIN_VIA_BROWSER &&
-        $typeoflogin != tool_mobile\api::LOGIN_VIA_EMBEDDED_BROWSER) {
+        $typeoflogin != tool_mobile\api::LOGIN_VIA_EMBEDDED_BROWSER &&
+        empty(\auth_plugin_base::get_identity_providers(
+            \core\di::get(\core\authentication::class)->get_enabled_plugins()))) {
     throw new moodle_exception('pluginnotenabledorconfigured', 'tool_mobile');
 }
 
