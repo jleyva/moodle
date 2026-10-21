@@ -51,8 +51,9 @@ if (empty($service)) {
 }
 
 // Set a cookie indicating that there was a launch to authenticate via the site from the app.
+// Note that oauthsso is not stored on purpose: it is read back after authenticating, restarting the SSO in a loop.
 $ldata = json_encode(['service' => $serviceshortname, 'passport' => $passport,
-    'urlscheme' => $urlscheme, 'confirmed' => (int) $confirmed, 'oauthsso' => $oauthsso]);
+    'urlscheme' => $urlscheme, 'confirmed' => (int) $confirmed]);
 $expires = time() + (15 * MINSECS); // 15 minutes for authentication should be enough.
 setcookie('tool_mobile_launch', $ldata, $expires, $CFG->sessioncookiepath, $CFG->sessioncookiedomain);
 
