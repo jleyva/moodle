@@ -50,6 +50,14 @@ if (empty($service)) {
     throw new moodle_exception('servicenotavailable', 'webservice');
 }
 
+$typeoflogin = get_config('tool_mobile', 'typeoflogin');
+
+// When logging in via an embedded browser, the login always happens inside the app, so we can require the app
+// user agent. This enhances security because the user agent cannot be tampered via XSS attacks.
+if ($typeoflogin == tool_mobile\api::LOGIN_VIA_EMBEDDED_BROWSER && !\core_useragent::is_moodle_app()) {
+    throw new moodle_exception('apprequired', 'tool_mobile');
+}
+
 // Set a cookie indicating that there was a launch to authenticate via the site from the app.
 $ldata = json_encode(['service' => $serviceshortname, 'passport' => $passport,
     'urlscheme' => $urlscheme, 'confirmed' => (int) $confirmed, 'oauthsso' => $oauthsso]);
@@ -67,7 +75,6 @@ if (!empty($oauthsso) && \core\di::get(\core\authentication::class)->is_enabled(
 }
 
 // Check if the plugin is properly configured.
-$typeoflogin = get_config('tool_mobile', 'typeoflogin');
 if (empty($SESSION->justloggedin) &&
         !\core\di::get(\core\authentication::class)->is_enabled('oauth2') &&
         $typeoflogin != tool_mobile\api::LOGIN_VIA_BROWSER &&
